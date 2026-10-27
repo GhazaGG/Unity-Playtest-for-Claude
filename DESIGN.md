@@ -1,6 +1,6 @@
 # unity-playtest: design
 
-Status: draft v0.1, for review before the skill is written.
+Status: v0.1 written. The design decisions are in section 12, and the milestones are in section 11.
 
 ## 1. The problem
 
@@ -97,7 +97,7 @@ Scene view screenshots are taken at chosen camera poses and inspected.
 
 This is the core value of the skill. Each item cost real time once.
 
-1. **Screenshots land in `Assets/`.** `capture_scene_view --save_path` must point inside the project, and the image is written under `Assets/`. Copy it out, then delete it through the Editor (`delete_asset`), not the file system.
+1. **`save_path` writes screenshots into `Assets/`.** `capture_scene_view --save_path` must point inside the project, and the image is written under `Assets/`, which leaves an asset and a `.meta` behind. Do not pass `save_path`; take the image inline (base64) and decode it into `.playtest/shots/`. If it already happened, delete the folder through the Editor (`delete_asset`), not the file system.
 2. **PlayMode tests cannot run synchronously over HTTP.** Entering Play Mode reloads the domain and drops the request. Use `run_tests --mode PlayMode --async_tests true`, then poll `test_status`.
 3. **Player-side `eval` has no references to game assemblies, and `#r` is refused.** Reach game types through `Type.GetType("Ns.Type, Assembly")` and reflection helpers.
 4. **The player runtime has a smaller command set.** It has `eval`, `eval_file`, `console`, `simulate_key`, `simulate_pointer` and `set_timescale`. It has no `run_script` and no `capture_game_view`.
@@ -133,14 +133,15 @@ Unity-Playtest-for-Claude/
 │   │   ├── host-client.md           # dev build, runtime, latency, reflection client, adversarial cases
 │   │   └── pitfalls.md              # section 6, kept current
 │   ├── scripts/
-│   │   ├── drive.py                 # runs step files plus a prelude against the Editor or a player (stdlib only)
-│   │   ├── prelude_editor.cs        # tp, aim, press and status helpers, typed
-│   │   ├── prelude_player.cs        # the same helpers through reflection
-│   │   └── doctor.py                # checks the CLI, Editor, Pipeline package and git status before and after a run
+│   │   ├── drive.py                 # runs step files after prelude.cs and the project adapter, against the Editor or a player (stdlib only)
+│   │   ├── prelude.cs               # reflection helpers, so the same steps run in the Editor and in a player
+│   │   └── doctor.py                # --init creates .playtest/; checks CLI, Editor, package and leftovers before and after a run
 │   └── templates/
 │       ├── PROJECT.md               # interaction and session map of a project
+│       ├── adapter.cs               # Player, Teleport, Aim, Press, Status for one project
 │       ├── CHECKLIST.md             # test-case table
 │       └── REPORT.md                # findings and summary
+├── tests/test_scripts.py       # unit checks for drive.py and doctor.py (stdlib unittest)
 ├── examples/                   # a sample checklist and report, and a GIF for the README
 ├── README.md
 ├── DESIGN.md                   # this file
@@ -191,8 +192,12 @@ These evals need a **small public sample Unity project** with a door, a key, a p
 | v0.2 | Public sample Unity project, three evals with and without the skill, examples, and the README GIF. |
 | v0.3 | Description tuned for triggering (skill-creator loop). Make the repo public and launch. |
 
-## 12. Open questions
+## 12. Decisions (2026-10-27)
 
-1. Should the sample project live in this repo (`sample/`), or in a separate repo to keep this one light? A Unity project with `Library/` ignored is about 1 to 5 MB.
-2. Should the checklist also come as an interactive page (pass, fail and notes buttons), or is Markdown enough for v0.1?
-3. Should the README name the game the bugs were found in, or keep it anonymous? Anonymous is the default.
+1. **The sample project gets its own repo** (`Unity-Playtest-Sample`). Installing a plugin copies the whole repo (`source: "./"`), so a Unity project in this repo would end up on every user's machine.
+2. **Every output goes to a self-ignoring `.playtest/` folder** in the project root. It holds a `.gitignore` containing `*`, so git ignores the folder and all of its contents without any change to the project's own `.gitignore`. Checklists, reports, screenshots, step files and client builds all live there, so `git status` stays clean. An interactive page or artifact is made only when the user asks for one.
+3. **Security first.**
+   - The bugs are described anonymously.
+   - Client builds with the Pipeline runtime go to `.playtest/builds/`, so they can never be committed.
+   - The skill asks before it turns on "Pipeline runtime in builds".
+   - `doctor.py` fails while that setting is still on.

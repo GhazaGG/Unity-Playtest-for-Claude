@@ -1,0 +1,74 @@
+"""Unit checks for drive.py and doctor.py. Run: python -m unittest discover -s tests"""
+import json
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "unity-playtest" / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+
+import doctor  # noqa: E402
+import drive  # noqa: E402
+
+
+def make_project(root):
+    (root / "ProjectSettings").mkdir(parents=True)
+    (root / "ProjectSettings" / "ProjectVersion.txt").write_text("m_EditorVersion: 6000.3.25f1\n")
+    (root / "Packages").mkdir()
+    (root / "Packages" / "manifest.json").write_text(json.dumps({"dependencies": {"com.unity.pipeline": "0.8.0-exp.1"}}))
+    return root
+
+
+class DriveTests(unittest.TestCase):
+    def test_parse_reads_results_and_cli_errors(self):
+        self.assertEqual(drive.parse('{"success": true, "result": "ok"}'), (True, {"success": True, "result": "ok"}))
+        ok, message = drive.parse('{"success": false, "errors": [{"code": "X", "message": "boom"}]}')
+        self.assertFalse(ok)
+        self.assertEqual(message, "boom")
+        self.assertEqual(drive.parse("not json"), (False, "not json"))
+
+    def test_build_source_orders_prelude_adapter_step_return(self):
+        source = drive.build_source("STEP_BODY", "ADAPTER_BODY")
+        self.assertLess(source.index("var sb ="), source.index("ADAPTER_BODY"))
+        self.assertLess(source.index("ADAPTER_BODY"), source.index("STEP_BODY"))
+        self.assertTrue(source.rstrip().endswith("return sb.ToString();"))
+
+    def test_find_image_takes_the_base64_payload(self):
+        self.assertEqual(drive.find_image({"width": 1280, "png": "A" * 2000, "encoding": "png"}), "A" * 2000)
+        self.assertIsNone(drive.find_image({"width": 1280}))
+
+    def test_find_project_walks_up(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_project(Path(tmp))
+            (root / "Assets" / "Scripts").mkdir(parents=True)
+            self.assertEqual(drive.find_project(root / "Assets" / "Scripts"), root.resolve())
+
+
+class DoctorTests(unittest.TestCase):
+    def test_init_creates_a_folder_git_ignores_by_itself(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = doctor.init_workspace(make_project(Path(tmp)))
+            self.assertEqual((work / ".gitignore").read_text().splitlines()[-1], "*")
+            for name in ("steps", "shots", "builds", "PROJECT.md", "CHECKLIST.md", "REPORT.md", "adapter.cs"):
+                self.assertTrue((work / name).exists(), name)
+
+    def test_runtime_left_enabled_in_builds_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_project(Path(tmp))
+            config = root / doctor.RUNTIME_CONFIG
+            config.parent.mkdir(parents=True)
+            config.write_text(json.dumps({"enableInBuilds": True}))
+            self.assertIn("FAIL", [level for level, _ in doctor.leftovers(root)])
+            config.write_text(json.dumps({"enableInBuilds": False}))
+            self.assertEqual(doctor.leftovers(root), [])
+
+    def test_screenshot_leftovers_warn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_project(Path(tmp))
+            (root / "Assets" / "Temp").mkdir(parents=True)
+            self.assertEqual([level for level, _ in doctor.leftovers(root)], ["WARN"])
+
+
+if __name__ == "__main__":
+    unittest.main()

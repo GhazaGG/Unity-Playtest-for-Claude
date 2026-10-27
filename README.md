@@ -1,6 +1,6 @@
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
-> **Work in progress.** The design is in [DESIGN.md](DESIGN.md), and the skill itself is coming in v0.1.
+> **v0.1, private preview.** It has been tested by hand on one real Unity 6 + Netcode project. A public sample project and proper evals come in v0.2. See [DESIGN.md](DESIGN.md).
 
 Claude can compile your project and run your unit tests, but it can't play your game. The bugs that reach review usually live in scenes, timing, physics and networking.
 
@@ -20,7 +20,7 @@ On its first real project, a Unity 6 + Netcode co-op game, it found three bugs t
 - For host + client: Netcode for GameObjects 2.x with Unity Transport 2.x (other stacks: adapter notes welcome)
 - Tested on Windows
 
-## Install (once v0.1 is out)
+## Install
 
 In Claude Code:
 
@@ -28,6 +28,38 @@ In Claude Code:
 /plugin marketplace add GhazaGG/Unity-Playtest-for-Claude
 /plugin install unity-playtest@unity-playtest
 ```
+
+Or copy `skills/unity-playtest/` into `~/.claude/skills/`.
+
+## Use
+
+Open your project in the Unity Editor, then just ask:
+
+> playtest the door-and-key feature from this PR's "How to test"
+
+> before I push, check Level01 for objects stuck in colliders and broken references
+
+> run host + client with 120 ms latency and make sure a client can't pick things up from across the room
+
+The first time, Claude runs `doctor.py --init`. That checks your setup and creates `.playtest/` in your project, a folder
+that ignores itself in git, so nothing it writes shows up in `git status`. Then it maps how your game's interact key
+works into `.playtest/adapter.cs`, so scripted presses take the same code path a player's key press does.
+
+It asks before anything that changes project settings: the host + client run needs a development build with the
+Pipeline runtime turned on for a moment. Claude turns it off again and reverts what the build touched.
+
+You can run the scripts yourself too:
+
+```bash
+python skills/unity-playtest/scripts/doctor.py --project path/to/YourUnityProject
+python skills/unity-playtest/scripts/drive.py --project path/to/YourUnityProject ready my_step wait:1 cap:after
+```
+
+## What it will not do
+
+- Judge feel, sound or looks. Those cases come back as "needs a human", with what to check.
+- Install packages, or edit `.unity`, `.prefab` or `.meta` files by hand. Everything goes through the Editor.
+- Leave a runtime-enabled build or a changed setting behind. `doctor.py` fails if it does.
 
 ## License
 
