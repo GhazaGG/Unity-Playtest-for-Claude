@@ -1,0 +1,12 @@
+{
+  "name": "unity-playtest",
+  "owner": {"name": "GhazaGG"},
+  "description": "Claude playtests your Unity game through Unity's Pipeline CLI.",
+  "plugins": [
+    {
+      "name": "unity-playtest",
+      "source": "./",
+      "description": "Editor probes, scripted Play Mode, host + client sessions with latency, and an honest pass/fail report for Unity games."
+    }
+  ]
+}

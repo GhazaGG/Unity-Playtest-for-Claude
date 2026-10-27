@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+out/
+# Unity sample project (v0.2)
+sample/[Ll]ibrary/
+sample/[Tt]emp/
+sample/[Ll]ogs/
+sample/[Uu]ser[Ss]ettings/
+sample/[Bb]uilds/
