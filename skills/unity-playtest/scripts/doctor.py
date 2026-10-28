@@ -61,12 +61,19 @@ def leftovers(project):
     config = project / RUNTIME_CONFIG
     if config.is_file():
         try:
-            enabled = json.loads(config.read_text(encoding="utf-8")).get("enableInBuilds")
-        except ValueError:
+            settings = json.loads(config.read_text(encoding="utf-8"))
+            # enableInBuilds up to Pipeline 0.8; enableInDevelopmentBuilds / enableInReleaseBuilds from 0.9
+            enabled = any(v is True for k, v in settings.items() if k.startswith("enableIn") and k.endswith("Builds"))
+        except (ValueError, AttributeError):
             enabled = None
         if enabled:
-            found.append(("FAIL", f"{RUNTIME_CONFIG} has enableInBuilds true: builds now ship the Pipeline runtime. "
-                                  "Turn it off (set_runtime_pipeline_settings) and delete the file if the run created it."))
+            found.append(("FAIL", f"{RUNTIME_CONFIG} turns the runtime on for builds: they now ship the Pipeline runtime. "
+                                  "Turn it off (settings.runtime_pipeline set; set_runtime_pipeline_settings before 0.9) and delete the file if the run created it."))
+    player_settings = project / "ProjectSettings" / "ProjectSettings.asset"
+    # Pipeline 0.9 keeps the toggle as a scripting define instead of the config file.
+    if player_settings.is_file() and "ENABLE_RUNTIME_PIPELINE" in player_settings.read_text(encoding="utf-8", errors="replace"):
+        found.append(("FAIL", "ProjectSettings.asset defines ENABLE_RUNTIME_PIPELINE: builds now ship the Pipeline runtime. "
+                              "Turn it off (settings.runtime_pipeline set with false)."))
     if (project / "Assets" / "Temp").exists():
         found.append(("WARN", "Assets/Temp exists: usually a screenshot taken with --save_path. Delete it through the "
                               "Editor (delete_asset --asset Assets/Temp --confirm true)."))

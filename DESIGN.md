@@ -222,7 +222,8 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 | v0.1 | SKILL.md, references, `drive.py` with both preludes, `doctor.py`, templates. Tested by hand on one project. Repo stays private. |
 | v0.2 | Sample Unity project (own repo), three evals with and without the skill, examples, and the README GIF. Done 2026-10-28. |
 | v0.3 | Late joiner, race and feel-number tools and evals; token fast path. Done 2026-10-28. |
-| v0.4 | Make the repos public and launch; run the race and feel-number evals. |
+| v0.3.1 | Pipeline 0.9 support: grouped command names with a fallback to 0.8, the define-based runtime toggle, pitfalls 31-33. |
+| v0.4 | Launch posts; run the race and feel-number evals. |
 
 ## 12. Decisions (2026-10-27)
 

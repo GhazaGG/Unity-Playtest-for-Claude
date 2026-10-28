@@ -2,7 +2,7 @@
 
 Probes read the open scene and never save it. Each probe below is a **step body**: save it as
 `.playtest/steps/<name>.cs` and run `drive.py <name>`. drive.py puts the prelude in front (which declares `sb`) and
-`return sb.ToString();` after it. To run one with a raw `unity command eval_file` instead, add
+`return sb.ToString();` after it. To run one with a raw `unity command script eval_file` (0.8: `eval_file`) instead, add
 `var sb = new System.Text.StringBuilder();` at the top and `return sb.ToString();` at the end.
 
 In Edit Mode the adapter looks nothing up, so probes run before the adapter is filled in. A probe-only run does not
@@ -14,6 +14,19 @@ with `--player`.
 
 `drive.py` prints the first 35 and last 5 lines of a long result and keeps the rest in `.playtest/out/<step>.txt`. End
 every probe with a count or a summary line, so that line is still printed when the list is cut.
+
+## Open the scene, and put the old one back
+
+Probe the scene the question is about, then reopen the one the user had. Never open over unsaved changes:
+
+```csharp
+// .playtest/steps/open_level.cs
+var ptOld = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+if (ptOld.isDirty) { sb.Append("not opened: " + ptOld.path + " has unsaved changes"); }
+else { UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/TODO/Level.unity"); sb.Append("was " + ptOld.path); }
+```
+
+Afterwards, open the path the step printed the same way. Wait for `ready` between the open and the first probe.
 
 ## Scene inventory
 
@@ -178,9 +191,9 @@ To read a value in another scene, open it additively, read it, and close it with
 ## Console baseline
 
 Before the run, note what is already in the console, so it is not reported as new. Use the `groundTruth` numbers of
-`unity command console_status`; the `counts` block can disagree with them. There are two lists, and each misses
+`unity command console status`; the `counts` block can disagree with them. There are two lists, and each misses
 something:
-- `unity command console` keeps its own buffer since the Editor started. It can miss native errors.
+- `unity command console get` keeps its own buffer since the Editor started. It can miss native errors.
 - The Console window's list, read by the step below, has the native errors, but "Clear on Play" empties it when
   Play Mode starts, and a message logged a moment ago can take an Editor tick to appear.
 

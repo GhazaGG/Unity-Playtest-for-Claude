@@ -20,7 +20,7 @@ A full example checklist and report from the sample project are in [examples/](e
 
 ## Requirements
 
-- Unity 6 with `com.unity.pipeline` (tested 0.8.0-exp.1) and the `unity` CLI
+- Unity 6 with `com.unity.pipeline` (tested 0.9.1-exp.1 and 0.8.0-exp.1; 0.9 renamed the CLI commands, and the skill handles both) and the `unity` CLI
 - Claude Code
 - For host + client: Netcode for GameObjects 2.x with Unity Transport 2.x (other stacks: adapter notes welcome)
 - Tested on Windows
@@ -100,6 +100,7 @@ a fast path for small requests, because v0.2 made light tasks cost more than doi
 | Probe Level01 | without skill | 5/5 | 147k | – | 514 s |
 | Probe Level01 | **v0.3 with skill**, run 1 | 4/5 | 71k | 11 | 85 s |
 | Probe Level01 | **v0.3 with skill**, run 2 | 5/5 | 74k | 12 | 103 s |
+| Probe Level01 | **v0.3.1 with skill**, Pipeline 0.9.1 | 5/5 | 73k | 10 | 95 s |
 | Late joiner sees the open door shut (host + client) | v0.3 with skill | 5/5 | 167k | 62 | 831 s |
 | Late joiner sees the open door shut (host + client) | without skill | 5/5 | 179k | 91 | 870 s |
 
@@ -113,6 +114,12 @@ Honest reading:
   player build.
 - The description was not re-tuned: skill-creator's trigger loop under-counts when its workers run in parallel (they
   share one `.claude/commands/`), and isolated spot checks triggered 3/3 with the current description.
+
+## How it relates to Unity's own Pipeline skill
+
+Unity ships an agent skill for the Pipeline CLI itself: which commands exist and how to call them. This skill sits on
+top of it. It is about *testing*: what to probe, how to play through the real input path, how to run and compare two
+peers, and how to report without overclaiming. The two work together.
 
 ## What it will not do
 

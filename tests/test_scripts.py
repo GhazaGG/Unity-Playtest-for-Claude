@@ -67,6 +67,23 @@ class DriveTests(unittest.TestCase):
             self.assertIn("saved", line)
             self.assertTrue((work / "shots" / "client.png").is_file())
 
+    def test_falls_back_to_flat_names_on_pipeline_08(self):
+        calls = []
+        def fake_run(cmd, **_):
+            calls.append(cmd)
+            grouped = "script" in cmd
+            out = '{"success": false, "errors": [{"message": "Command Not Found"}]}' if grouped else '{"result": "ok"}'
+            return type("Done", (), {"stdout": out, "stderr": ""})()
+        real_run, real_which = drive.subprocess.run, drive.shutil.which
+        drive.subprocess.run, drive.shutil.which, drive._grouped = fake_run, (lambda _: "unity"), None
+        try:
+            self.assertEqual(drive.unity(["eval", "--code", "x"]), (True, {"result": "ok"}))
+            self.assertFalse(drive._grouped)
+            drive.unity(["eval", "--code", "y"])
+            self.assertEqual(len(calls), 3)  # grouped, flat, then flat only
+        finally:
+            drive.subprocess.run, drive.shutil.which, drive._grouped = real_run, real_which, None
+
     def test_find_project_walks_up(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_project(Path(tmp))
@@ -90,7 +107,13 @@ class DoctorTests(unittest.TestCase):
             config.write_text(json.dumps({"enableInBuilds": True}))
             self.assertIn("FAIL", [level for level, _ in doctor.leftovers(root)])
             config.write_text(json.dumps({"enableInBuilds": False}))
+            self.assertFalse([m for level, m in doctor.leftovers(root) if level == "FAIL"])
+            config.write_text(json.dumps({"enableInDevelopmentBuilds": True, "enableInReleaseBuilds": False}))
+            self.assertTrue([m for level, m in doctor.leftovers(root) if level == "FAIL"])
+            config.write_text(json.dumps({"enableInBuilds": False}))
             self.assertEqual(doctor.leftovers(root), [])
+            (root / "ProjectSettings" / "ProjectSettings.asset").write_text("    Standalone: ENABLE_RUNTIME_PIPELINE_DEV\n")
+            self.assertIn("FAIL", [level for level, _ in doctor.leftovers(root)])
 
     def test_editor_row_matches_the_path_exactly(self):
         with tempfile.TemporaryDirectory() as tmp:

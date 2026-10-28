@@ -64,21 +64,37 @@ def parse(raw):
     return True, data
 
 
+# Pipeline 0.9 groups its commands ("script eval"); 0.8 and older use flat names ("eval"). Callers pass the 0.8 name.
+GROUPED = {
+    "eval": ["script", "eval"], "eval_file": ["script", "eval_file"], "editor_status": ["editor", "status"],
+    "capture_game_view": ["capture", "game_view"], "capture_scene_view": ["capture", "scene_view"],
+}
+_grouped = None  # None until the first call tells which naming the Pipeline speaks
+
+
 def unity(args, player=None, timeout=90, project=None):
+    global _grouped
     exe = shutil.which("unity")
     if not exe:
         sys.exit("The `unity` CLI is not on PATH. See references/pipeline-cheatsheet.md.")
-    cmd = [exe, "command"]
-    if player:
-        cmd += ["--runtime-path", str(player)]  # the folder holding .unity-pipeline-runtime-port
-    elif project:
-        cmd += ["--project-path", str(project)]  # never guess the Editor when several are open
-    cmd += list(args) + ["--no-banner", "--result-only"]
-    try:
-        done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return False, f"timed out after {timeout}s: {' '.join(args[:1])}"
-    return parse(done.stdout or done.stderr)
+    target = ["--runtime-path", str(player)] if player else ["--project-path", str(project)] if project else []
+    name, rest = args[0], list(args[1:])
+    tries = [True, False] if _grouped is None else [_grouped]
+    for grouped in tries:
+        command = GROUPED.get(name, [name]) if grouped else [name]
+        extra = ["--omit-nulls"] if grouped else []
+        try:
+            done = subprocess.run([exe, "command", *target, *command, *rest, *extra, "--no-banner", "--result-only"],
+                                  capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return False, f"timed out after {timeout}s: {name}"
+        ok, data = parse(done.stdout or done.stderr)
+        unknown = not ok and ("not found" in str(data).lower() or "no command named" in str(data).lower())
+        if not unknown or name not in GROUPED:
+            if _grouped is None and name in GROUPED and (ok or not unknown):
+                _grouped = grouped
+            return ok, data
+    return ok, data
 
 
 def build_source(step_body, adapter_text, editor=True):

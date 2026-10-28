@@ -10,17 +10,23 @@ The build needs the Pipeline runtime inside the player. That is a project settin
 shared. Say both things to the user, and get a yes before going on. A request that already allows the build counts
 as the yes.
 
-1. `unity command set_runtime_pipeline_settings --settings '{"enableInBuilds": true}' --confirm true`
-2. `unity command build --target <StandaloneWindows64|StandaloneOSX|StandaloneLinux64> --outputPath .playtest/builds/client/<Game>.exe --options '["Development"]' --confirm true`
-3. Poll `unity command build_status` until `completed`, and check `result` is `Succeeded`.
-4. Turn the setting off **right away**, whether or not the build succeeded:
-   `unity command set_runtime_pipeline_settings --settings '{"enableInBuilds": false}' --confirm true`
+Commands below are Pipeline 0.9 names; the 0.8 names are in [pipeline-cheatsheet.md](pipeline-cheatsheet.md).
+
+1. `unity command settings.runtime_pipeline set --settings '{"enableInDevelopmentBuilds": true}' --confirm true`
+   (0.8: `set_runtime_pipeline_settings --settings '{"enableInBuilds": true}'`). On 0.9 this sets a scripting define
+   and recompiles: run `drive.py wait:5 ready` before building.
+2. `unity command build run --target <StandaloneWindows64|StandaloneOSX|StandaloneLinux64> --outputPath .playtest/builds/client/<Game>.exe --options '["Development"]' --confirm true`
+3. Poll `unity command build status` until `completed`. Check that `result` is `Succeeded` **and** that
+   `<Game>_Data/Managed/Unity.Pipeline.dll` exists; a build that raced the recompile succeeds without the runtime.
+4. Turn the setting off **right away**, whether or not the build succeeded: the same `set` with `false`.
 5. Run `git status` and `doctor.py`, then revert what the build touched:
-   - `ProjectSettings/Packages/com.unity.pipeline/RuntimePipelineConfig.json`: delete it if the run created it.
+   - `ProjectSettings/Packages/com.unity.pipeline/RuntimePipelineConfig.json` (0.8): delete it if the run created it.
+   - `ProjectSettings/ProjectSettings.asset` with new empty `scriptingDefineSymbols` entries (0.9): once the define is
+     off again, restore it with `git checkout -- ProjectSettings/ProjectSettings.asset`.
    - `ProjectSettings/ProjectSettings.asset` gaining a `preloadedAssets` entry (the Input System actions asset):
      restore it with `git checkout -- ProjectSettings/ProjectSettings.asset`. First check in the Editor that
      `PlayerSettings.GetPreloadedAssets()` is back to what it was.
-   - An empty `Assets/Settings/Pipeline` folder: `delete_asset --asset Assets/Settings --confirm true`, if that folder
+   - An empty `Assets/Settings/Pipeline` folder: `asset delete --asset Assets/Settings --confirm true` (0.8: `delete_asset`), if that folder
      did not exist before.
 
 Building into `.playtest/builds/` keeps the binary out of git, even in projects whose `.gitignore` has no `Builds/` rule.

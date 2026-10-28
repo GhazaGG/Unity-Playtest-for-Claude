@@ -47,6 +47,11 @@ client session.
 
 ## Step 0: set up (once per project)
 
+Pipeline 0.9 renamed the CLI commands into groups (`unity command script eval`, `editor status`, `build run`). The
+references use the 0.9 names, and [pipeline-cheatsheet.md](references/pipeline-cheatsheet.md) maps them to 0.8.
+`drive.py` handles both.
+
+
 1. Run `python <skill>/scripts/doctor.py --init` from the project. It:
    - checks the `unity` CLI, the `com.unity.pipeline` package and whether the Editor is reachable;
    - creates `.playtest/`, a folder that ignores itself in git (its own `.gitignore` is `*`), so nothing the
@@ -147,15 +152,15 @@ The user pays for every line you read. A playtest repeats the same calls many ti
   text in `.playtest/out/<step>.txt`. Search that file for what you need instead of rerunning with `--full`. Write
   probes so the summary line comes last.
 - **Polls return big JSON.** Print only the fields you check: `status`, `result` and `totalErrors` from
-  `build_status`; the counts and the names of failed tests from `test_status`. For example, pipe the call through
+  `build status`; the counts and the names of failed tests from `test status`. On Pipeline 0.9, add `--omit-nulls`. For example, pipe the call through
   `python -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), d.get('result'), d.get('totalErrors'))"`.
-- **Console:** read `console_status` first, and pull entries only when the counts show something new.
+- **Console:** read `console status` first, and pull entries only when the counts show something new.
 - **Discovery commands** (`unity list`, `--detail full`) only when a command is rejected.
 - **Read each reference once.** Do not reread a file that is already in the conversation.
 
 ## Ground rules
 
-- **Through the Editor only.** Change assets with the Editor API (eval, `delete_asset`). Never hand-edit `.unity`,
+- **Through the Editor only.** Change assets with the Editor API (eval, `asset delete`). Never hand-edit `.unity`,
   `.prefab`, `.asset` or `.meta` files, and never move or delete under `Assets/` from the file system.
 - **Read before you change.** Probes and scripted runs must not save scenes. Before any change to project settings,
   say what changes and why, get a yes, and revert it afterwards.
