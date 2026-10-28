@@ -6,6 +6,7 @@ Usage:
 
 A STEP is one of:
   NAME         runs .playtest/steps/NAME.cs, after prelude.cs and .playtest/adapter.cs
+  status       prints the adapter's Status() line (built in; a steps/status.cs replaces it)
   wait:SEC     sleeps for SEC seconds (a float is fine)
   ready        waits until the Editor is idle: not compiling, no domain reload (Editor only)
   cap:NAME     saves the Game view to .playtest/shots/NAME.png (Editor only)
@@ -25,6 +26,18 @@ import time
 from pathlib import Path
 
 PRELUDE = Path(__file__).resolve().parent / "prelude.cs"
+
+# Editor steps only. An unfocused Editor can stop running Play Mode frames altogether (Time.frameCount stays put)
+# until something asks for updates. While playing, ask for a player-loop update on every Editor tick. The callback
+# removes itself once Play Mode ends, so it never spins the Editor in Edit Mode, and the captured name ptKeep marks it
+# so later steps don't add a second one.
+EDITOR_KEEPALIVE = """\
+UnityEditor.EditorApplication.CallbackFunction ptKeep = null;
+ptKeep = () => { if (UnityEditor.EditorApplication.isPlaying) UnityEditor.EditorApplication.QueuePlayerLoopUpdate(); else UnityEditor.EditorApplication.update -= ptKeep; };
+var ptUpdate = UnityEditor.EditorApplication.update;
+if (UnityEditor.EditorApplication.isPlaying && (ptUpdate == null || !System.Array.Exists(ptUpdate.GetInvocationList(), d => d.Target != null && d.Target.GetType().GetField("ptKeep") != null)))
+    UnityEditor.EditorApplication.update += ptKeep;
+"""
 
 
 def find_project(start):
@@ -49,13 +62,15 @@ def parse(raw):
     return True, data
 
 
-def unity(args, player=None, timeout=90):
+def unity(args, player=None, timeout=90, project=None):
     exe = shutil.which("unity")
     if not exe:
         sys.exit("The `unity` CLI is not on PATH. See references/pipeline-cheatsheet.md.")
     cmd = [exe, "command"]
     if player:
         cmd += ["--runtime-path", str(player)]  # the folder holding .unity-pipeline-runtime-port
+    elif project:
+        cmd += ["--project-path", str(project)]  # never guess the Editor when several are open
     cmd += list(args) + ["--no-banner", "--result-only"]
     try:
         done = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
@@ -64,9 +79,11 @@ def unity(args, player=None, timeout=90):
     return parse(done.stdout or done.stderr)
 
 
-def build_source(step_body, adapter_text):
-    """prelude + adapter + step + return. The order matters: the step uses names from both."""
-    return "\n".join([PRELUDE.read_text(encoding="utf-8"), adapter_text, step_body, "return sb.ToString();", ""])
+def build_source(step_body, adapter_text, editor=True):
+    """[keepalive] + prelude + adapter + step + return. The order matters: the step uses names from both."""
+    parts = [EDITOR_KEEPALIVE] if editor else []
+    parts += [PRELUDE.read_text(encoding="utf-8"), adapter_text, step_body, "return sb.ToString();", ""]
+    return "\n".join(parts)
 
 
 def find_image(data):
@@ -78,6 +95,7 @@ def find_image(data):
 
 
 def run_step(step, work, player):
+    project = work.parent
     if step.startswith("wait:"):
         time.sleep(float(step[5:]))
         return None
@@ -85,9 +103,10 @@ def run_step(step, work, player):
         if player:
             return "[ready] skipped: Editor only"
         for _ in range(120):
-            ok, data = unity(["editor_status"])
-            if ok and isinstance(data, dict) and data.get("status") == "ready" and not data.get("compiling") \
-                    and not data.get("domainReloadInProgress"):
+            ok, data = unity(["editor_status"], project=project)
+            # status is "ready" in Edit Mode and "playing" (or "paused") in Play Mode.
+            if ok and isinstance(data, dict) and data.get("status") in ("ready", "playing", "paused") \
+                    and not data.get("compiling") and not data.get("domainReloadInProgress"):
                 return "[ready] Editor ready, play mode " + str(data.get("playMode"))
             time.sleep(1)
         return "[ready] gave up after 120 s"
@@ -96,7 +115,7 @@ def run_step(step, work, player):
             name = step[len(prefix):]
             if player:
                 return f"[{name}] skipped: players have no {command}"
-            ok, data = unity([command])
+            ok, data = unity([command], project=project)
             image = find_image(data) if ok else None
             if not image:
                 return f"[{name}] capture failed: {data if not ok else 'no image in result'}"
@@ -105,14 +124,17 @@ def run_step(step, work, player):
             out.write_bytes(base64.b64decode(image))
             return f"[{name}] saved {out}"
     step_file = work / "steps" / f"{step}.cs"
-    if not step_file.is_file():
+    if step_file.is_file():
+        body = step_file.read_text(encoding="utf-8")
+    elif step == "status":
+        body = "sb.Append(Status());"  # built in, unless the project has its own status.cs
+    else:
         return f"[{step}] no such step file: {step_file}"
     adapter = work / "adapter.cs"
-    source = build_source(step_file.read_text(encoding="utf-8"),
-                          adapter.read_text(encoding="utf-8") if adapter.is_file() else "")
+    source = build_source(body, adapter.read_text(encoding="utf-8") if adapter.is_file() else "", editor=not player)
     run_file = work / "_run.cs"
     run_file.write_text(source, encoding="utf-8")
-    ok, data = unity(["eval_file", "--file", str(run_file), "--timeout", "30"], player)
+    ok, data = unity(["eval_file", "--file", str(run_file), "--timeout", "30"], player, project=project)
     if ok and isinstance(data, dict):
         data = data.get("result")
     return f"[{step}] {data}"

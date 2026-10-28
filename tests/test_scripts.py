@@ -34,6 +34,11 @@ class DriveTests(unittest.TestCase):
         self.assertLess(source.index("ADAPTER_BODY"), source.index("STEP_BODY"))
         self.assertTrue(source.rstrip().endswith("return sb.ToString();"))
 
+    def test_keepalive_is_editor_only(self):
+        # Players have no UnityEditor assembly, so the keepalive must stay out of their source.
+        self.assertIn("QueuePlayerLoopUpdate", drive.build_source("S", "A"))
+        self.assertNotIn("UnityEditor", drive.build_source("S", "A", editor=False))
+
     def test_find_image_takes_the_base64_payload(self):
         self.assertEqual(drive.find_image({"width": 1280, "png": "A" * 2000, "encoding": "png"}), "A" * 2000)
         self.assertIsNone(drive.find_image({"width": 1280}))
@@ -62,6 +67,17 @@ class DoctorTests(unittest.TestCase):
             self.assertIn("FAIL", [level for level, _ in doctor.leftovers(root)])
             config.write_text(json.dumps({"enableInBuilds": False}))
             self.assertEqual(doctor.leftovers(root), [])
+
+    def test_editor_row_matches_the_path_exactly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            game = Path(tmp).resolve() / "Game"
+            listing = "\n".join([
+                "Project\tPath\tPID\tRunning\tPipeline\tVersion\tUpdate\tPort\tServer Reachable\tSafe Mode",
+                f"Game-B\t{game}-B\t2\ttrue\ttrue\t0.8\ttrue\t7800\tfalse\t",
+                f"Game\t{game}\t1\ttrue\ttrue\t0.8\ttrue\t7800\ttrue\t",
+            ])
+            self.assertEqual(doctor.editor_row(listing, game)[0], "Game")
+            self.assertEqual(doctor.editor_row(listing, Path(tmp) / "Other"), [])
 
     def test_screenshot_leftovers_warn(self):
         with tempfile.TemporaryDirectory() as tmp:

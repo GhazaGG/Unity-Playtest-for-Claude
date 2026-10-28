@@ -31,8 +31,15 @@ Building into `.playtest/builds/` keeps the binary out of git, even in projects 
 - Wait until `.unity-pipeline-runtime-port` appears next to the exe. From then on, call it with
   `--runtime-path .playtest/builds/client`. `drive.py --player .playtest/builds/client` does this for you.
 - **Latency.** Prefer the project's own test switch, if PROJECT.md lists one (for example a send delay per peer). Set
-  it at runtime on both peers, before the host starts and before the client joins, so no scene file changes. 60 ms per
-  peer gives about 120 ms RTT.
+  it at runtime on both peers, before the host starts and before the client joins, so no scene file changes. The
+  setting is not the round trip: measure it on the host with
+  `NetworkManager.NetworkConfig.NetworkTransport.GetCurrentRtt(clientId)` and report the measured value. On two
+  projects the same "send delay per peer" gave about 2x and about 4x the setting, so start at about a quarter of the
+  target round trip per peer, take five or more samples, and adjust once. Report the median and the range. If the
+  project has no switch, say so and ask before adding one; NGO 2.x's `SetDebugSimulatorParameters` no longer does
+  anything.
+- **One host per port.** `StartHost` fails ("Failed to bind") while another Editor or an old client build already
+  hosts on the same port. Close it, or give this run another port on the transport in Play Mode memory only.
 - Start the host in the Editor (Play the menu scene, then call the host method). Then join from the client by calling
   its join method in a step.
 - Wait until the host lists 2 clients **and** the client's `PlayerGo()` is non-null.
@@ -71,9 +78,26 @@ python <skill>/scripts/drive.py host_status
 ## 5. Adversarial intents (layer 4)
 
 A normal client cannot send these, because its own detector or range check stops it first. Bypass the client-side
-check and call the client's request method directly, then check that the server refuses:
+check and call the client's request method directly, then check that the server refuses.
+
+With NGO, the request usually takes a `NetworkObjectReference`. In a player, eval cannot see the type, so build it by
+reflection:
+
+```csharp
+var ptRefType = PtType("Unity.Netcode.NetworkObjectReference, Unity.Netcode.Runtime");
+var ptTargetNo = PtFind("Coin_B2").GetComponent(PtType("Unity.Netcode.NetworkObject, Unity.Netcode.Runtime")); // TODO: the target
+var ptRef = System.Activator.CreateInstance(ptRefType, new object[] { ptTargetNo });
+sb.Append("sent=" + PtCall(ptInteractor, "TODO_RequestServerRpc", new object[] { ptRef }) + " " + Status());
+```
+
+**Prove the request arrived before you call it refused.** A default or empty reference, a wrong overload or an RPC
+that was never sent looks exactly like a server that refused. Send one legal request the same way first and see the
+state change; only then does "nothing changed" mean "refused".
+
+Cases:
 - **Too far:** teleport the client 6 m away, wait for the server to see it, then call the request with the target.
-- **Through a wall:** stand within range but behind solid geometry, then call the request.
+- **Through a wall:** stand within range but behind solid geometry, then call the request. If no target sits within
+  range behind a wall, say that the case cannot tell a missing wall check from a missing range check.
 - **Not allowed:** a host-only action, or a target already held by someone else.
 
 The server must leave the state unchanged. Report a forged intent that succeeds as a security bug.
@@ -90,5 +114,7 @@ The server must leave the state unchanged. Report a forged intent that succeeds 
 
 ## 7. Clean up
 
-Stop Play Mode. Close the client (kill the process if `quit` does not answer). Run `doctor.py`. Keep the build only if
-the user wants to reuse it, and remind them that it has the runtime enabled and must not be shared.
+Stop Play Mode. Close the client (kill the process if `quit` does not answer), then confirm no client process is
+left (pitfall 21). Run `doctor.py`. Delete the build unless the user wants to reuse it; if it stays, remind them that
+it has the runtime enabled and must not be shared. Keep the rest of `.playtest/` (it is git-ignored and the next run
+reuses the map and the adapter).

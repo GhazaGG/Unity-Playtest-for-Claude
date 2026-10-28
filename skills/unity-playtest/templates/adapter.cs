@@ -6,6 +6,7 @@
 // The contract steps rely on:
 //   PlayerGo()        the local player's GameObject
 //   Teleport(pos)     move the player there (a harness shortcut: say so in the report)
+//   Walk(pos)         walk there with the game's own movement; "reached ..." or "BLOCKED at ..."
 //   Aim(pos)          turn the view so the interaction ray points at pos, then refresh the detector this frame
 //   Press()           do exactly what the interact key does, and return a short result
 //   Status()          one line of game state used in every step's output
@@ -25,8 +26,9 @@ System.Func<UnityEngine.GameObject> PlayerGo = () =>
     return UnityEngine.GameObject.FindWithTag("Player"); // offline scenes
 };
 
-// TODO: the components the input path uses. Write the full type names, assembly included.
-var ptPlayer = PlayerGo();
+// TODO: the components the input path uses. Write the full type names, assembly included. They are looked up only
+// in Play Mode, so Edit Mode probes still run while these are TODO.
+var ptPlayer = UnityEngine.Application.isPlaying ? PlayerGo() : null;
 var ptLook = ptPlayer != null ? ptPlayer.GetComponent(PtType("TODO.PlayerLook, TODO.Assembly")) : null;
 var ptDetector = ptPlayer != null ? ptPlayer.GetComponent(PtType("TODO.InteractionDetector, TODO.Assembly")) : null;
 var ptInteractor = ptPlayer != null ? ptPlayer.GetComponent(PtType("TODO.PlayerInteractor, TODO.Assembly")) : null;
@@ -39,6 +41,32 @@ System.Action<UnityEngine.Vector3> Teleport = pos =>
     ptPlayer.transform.position = pos;
     if (cc != null) cc.enabled = true;
     UnityEngine.Physics.SyncTransforms();
+    PtCall(ptDetector, "Detect", new object[0]); // or Status() shows the target from before the move
+};
+
+// TODO: the player's walk speed (from the movement script) and its movement call, if it is not a CharacterController.
+var ptWalkSpeed = 4f;
+System.Func<UnityEngine.Vector3, string> Walk = to =>
+{
+    // Walks toward `to` the way the movement code does, so walls, doors and gaps stop the player as they would stop a
+    // person. Use it, not Teleport, to cross the thing under test.
+    var cc = ptPlayer.GetComponent<UnityEngine.CharacterController>();
+    var start = ptPlayer.transform.position;
+    for (int i = 0; i < 300; i++) // up to 10 s of walking, 30 moves per second
+    {
+        var d = to - ptPlayer.transform.position;
+        d.y = 0f;
+        if (d.magnitude < 0.05f) break;
+        var before = ptPlayer.transform.position;
+        cc.Move(UnityEngine.Vector3.ClampMagnitude(d, ptWalkSpeed / 30f) + UnityEngine.Vector3.down * 0.1f);
+        if ((ptPlayer.transform.position - before).sqrMagnitude < 1e-6f) break; // something solid stopped the player
+    }
+    UnityEngine.Physics.SyncTransforms();
+    PtCall(ptDetector, "Detect", new object[0]);
+    var left = to - ptPlayer.transform.position;
+    left.y = 0f;
+    return (left.magnitude < 0.1f ? "reached " : "BLOCKED at ") + ptPlayer.transform.position.ToString("F2")
+        + " after " + UnityEngine.Vector3.Distance(start, ptPlayer.transform.position).ToString("F2") + " m";
 };
 
 System.Action<UnityEngine.Vector3> Aim = pos =>

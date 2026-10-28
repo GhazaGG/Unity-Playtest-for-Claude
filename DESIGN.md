@@ -164,7 +164,25 @@ Grading checks objective facts:
 - feel cases were marked "needs a human";
 - the project was left clean.
 
-These evals need a **small public sample Unity project** with a door, a key, a pickup and NGO session start and join. That is milestone v0.2.
+These evals need a **small public sample Unity project** with a door, a key, a pickup and NGO session start and join.
+It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), and the cases live in
+`skills/unity-playtest/evals/` (the `claude plugin eval` layout).
+
+**v0.2 result (2026-10-28):**
+- With the skill the runs scored 15/15; without it, 14/15. Each configuration ran once per eval.
+- The baseline found every planted bug too, so these cases are too easy. v0.3 needs cases where reading the code is
+  not enough. Candidates:
+  - a race that only shows at latency;
+  - a late joiner who sees a removed object;
+  - a feel number (a timer) the report must measure, not guess.
+- The skill earned its keep on honesty: the only failed baseline check marked "the door swings open" as passed from a
+  screenshot. It also earned it on effort for host + client: 53 vs 84 tool calls.
+- The runs' notes drove the v0.2 fixes:
+  - probes rewritten as step bodies;
+  - an all-pairs buried-collider probe, a spawn-capsule probe, a moving-part probe and a console probe;
+  - `Walk()` in the adapter and a built-in `status` step;
+  - exact Editor matching in `doctor.py`, and `--project-path` and a keepalive in `drive.py`;
+  - pitfalls 19 to 27.
 
 ## 9. Launch plan (for stars)
 
@@ -189,7 +207,7 @@ These evals need a **small public sample Unity project** with a door, a key, a p
 | Version | Content |
 |---|---|
 | v0.1 | SKILL.md, references, `drive.py` with both preludes, `doctor.py`, templates. Tested by hand on one project. Repo stays private. |
-| v0.2 | Public sample Unity project, three evals with and without the skill, examples, and the README GIF. |
+| v0.2 | Sample Unity project (own repo), three evals with and without the skill, examples, and the README GIF. Done 2026-10-28. |
 | v0.3 | Description tuned for triggering (skill-creator loop). Make the repo public and launch. |
 
 ## 12. Decisions (2026-10-27)

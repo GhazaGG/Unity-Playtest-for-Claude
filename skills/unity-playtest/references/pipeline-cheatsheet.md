@@ -5,6 +5,12 @@ the exact parameters with `unity command --detail full --query <name>` when some
 
 Add `--no-banner --result-only` to get plain JSON back. `drive.py` does that for you.
 
+- Pass parameters as named flags (`--settings '{...}' --confirm true`). A positional JSON argument is accepted and
+  silently ignored.
+- With more than one Editor open, add `--project-path <project>` to every call. Without it the CLI guesses from the
+  working directory, and right after entering Play Mode it has answered from the other Editor.
+- In `console_status`, trust `groundTruth`; its `counts` block can disagree.
+
 ## Find and inspect the Editor
 
 | Goal | Command |
@@ -12,10 +18,11 @@ Add `--no-banner --result-only` to get plain JSON back. `drive.py` does that for
 | Is the Editor open and reachable? | `unity pipeline list` (TSV: Project, Path, PID, Running, Pipeline, Version, Update, Port, **Server Reachable**, Safe Mode) |
 | List tools the Editor offers | `unity list` |
 | Parameters of one tool | `unity command --detail full --query <name>` |
-| Idle? Compiling? Playing? | `unity command editor_status`, then wait for `status: ready` and `compiling: false` |
+| Idle? Compiling? Playing? | `unity command editor_status`, then wait for `compiling: false` and `domainReloadInProgress: false`. `status` is `ready` in Edit Mode but `playing` in Play Mode |
 | Console without pulling entries | `unity command console_status` (counts, `compilationFailed`) |
 | Console entries | `unity command console` |
 | Clear console | `unity command clear_console` |
+| Quit the Editor | `unity command eval --code 'UnityEditor.EditorApplication.Exit(0); return "";'` (the call errors because the Editor is gone; a `delayCall` version never runs in an idle Editor) |
 
 The Pipeline server answers only once the Editor has finished loading. Right after an Editor start or a domain
 reload, `unity list` fails with "Pipeline server isn't reachable". Poll it.

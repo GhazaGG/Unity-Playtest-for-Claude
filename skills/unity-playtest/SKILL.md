@@ -40,7 +40,7 @@ Read the reference that matches the layer you are on. Do not read them all up fr
    - list the timers that drain while you think.
 
    Fill in `PROJECT.md` and `.playtest/adapter.cs`, following [scripted-input.md](references/scripted-input.md). This is
-   the only project-specific code. Later runs reuse it.
+   the only project-specific code. Later runs reuse it. A probe-only run does not need the adapter.
 
 ## Step 1: write the checklist
 
@@ -49,7 +49,8 @@ Give every case a layer:
 - `probe`, `solo`, `session` or `adversarial` when a script can check it;
 - `human` when only a person can judge it (feel, sound, look, fun).
 
-Show the user the list before running long sessions, so they can add the case they actually worry about.
+Show the user the list before running long sessions, so they can add the case they actually worry about. If nobody
+can answer, go ahead with the probe and solo cases, and run session cases only when the request asked for them.
 
 ## Step 2: probes (layer 1)
 
@@ -71,6 +72,7 @@ Take a Scene view screenshot with `drive.py scene:NAME`, then look at it. Probes
 - Rules:
   - teleport and press in separate steps;
   - aim and press in the same step;
+  - cross doorways, gaps and ramps with `Walk()`, never with `Teleport()`;
   - assert on state, and confirm with the picture.
 
 ## Step 4: host + client (layer 3)
@@ -95,14 +97,16 @@ The server must refuse every one. A forged intent that succeeds is a security fi
 
 ## Step 6: report and clean up
 
-Fill in `.playtest/REPORT.md` and the checklist's Result and By columns. Then:
+Fill in `.playtest/REPORT.md` and the checklist's Result and By columns (if the file cannot be written, give the
+report as text). Then:
 - **Each failure needs evidence and a repro a person can follow.** Give the state lines, the screenshot, and the cause
   if you found it. If the user wants a fix, fix it in the project and run the failing case again.
 - **Leave harness artefacts out of the failure count, but list them.** Examples: a refused action after a same-step
   teleport, a timer that ran out while you were thinking, kinematic velocity warnings.
 - **Never mark a `human` case as passed.** Write exactly what the person should look, listen or feel for.
-- **Clean up:** stop Play Mode, close the client, and run `doctor.py`. It must report no FAIL, and no change under
-  `Assets/`, `ProjectSettings/` or `Packages/` that the run made.
+- **Clean up:** stop Play Mode, close the client, delete runtime builds, reopen the scene that was open before, and
+  run `doctor.py`. It must report no FAIL, and no change under `Assets/`, `ProjectSettings/` or `Packages/` that the
+  run made. Keep the rest of `.playtest/`: it is git-ignored, and the next run reuses it.
 
 Give the user the short summary (passed, failed, needs a human, findings) and the path to the report.
 

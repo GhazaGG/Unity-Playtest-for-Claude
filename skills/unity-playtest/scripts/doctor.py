@@ -27,6 +27,18 @@ def find_project(start):
     return None
 
 
+def editor_row(listing, project):
+    """The `unity pipeline list` row whose Path column is this project, as cells, or []. An exact match: one project
+    path can be a prefix of another (MyGame and MyGame-B)."""
+    # Columns: Project, Path, PID, Running, Pipeline, Version, Update, Port, Server Reachable, Safe Mode
+    want = str(Path(project).resolve()).rstrip("\\/").lower()
+    for line in listing.splitlines():
+        cells = line.split("\t")
+        if len(cells) > 1 and cells[1].strip().rstrip("\\/").lower() == want:
+            return cells
+    return []
+
+
 def init_workspace(project):
     """.playtest/ with a .gitignore of '*': git ignores the folder and everything in it, and the project's own
     .gitignore stays untouched."""
@@ -112,10 +124,8 @@ def main(argv=None):
     if exe:
         listing = subprocess.run([exe, "pipeline", "list", "--no-banner"], capture_output=True, text=True,
                                  encoding="utf-8", errors="replace").stdout
-        row = next((line for line in listing.splitlines() if str(project).lower() in line.lower()), "")
-        cells = row.split("\t")
-        # Columns: Project, Path, PID, Running, Pipeline, Version, Update, Port, Server Reachable, Safe Mode
-        if not row:
+        cells = editor_row(listing, project)
+        if not cells:
             report("WARN", "no open Editor for this project: open it before Editor or Play Mode steps")
         elif len(cells) > 8 and cells[8].strip().lower() == "true":
             report("OK", "Editor open and Pipeline server reachable")

@@ -1,0 +1,8 @@
+schema_version: "1.1"
+name: pickup-reach-host-client
+expected_outcome: |
+  The Editor hosts and a development build joins as a client, both with the sample's LatencySimulator (or another
+  latency setting), and the round trip is measured. A normal client pickup raises the coin count on both peers.
+  A pickup request sent from the client for a coin far out of reach is accepted by the server, which is reported as
+  a missing server-side reach check (a security finding). Afterwards the Pipeline runtime is off for builds, the
+  client is closed, and the project is unchanged.

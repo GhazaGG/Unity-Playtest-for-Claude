@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: door-and-key-solo
+expected_outcome: |
+  A solo Play Mode run that goes through the player's own interact path (detector target, then
+  PlayerInteractor.Interact) for the key and the door. Steps 2 to 4 pass. Step 5 fails: the door swings open, but an
+  invisible collider on the Door root still blocks the doorway, so the player cannot walk into the second room.
+  Look and feel items are left for a person. Play Mode is stopped and the project is unchanged afterwards.

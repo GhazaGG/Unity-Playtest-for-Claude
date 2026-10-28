@@ -1,0 +1,7 @@
+schema_version: "1.1"
+name: level01-stuck-and-missing
+expected_outcome: |
+  Read-only probes of Level01 find the three planted problems: Coin_A4 sits inside Wall_West, Spawn_4 is inside
+  the Crate, and ScoreBoard's _coinClip points at a deleted asset (a missing reference, so the coin sound never
+  plays). Intended overlaps such as the Key on the Table or the Door in its doorway are not reported as bugs, and
+  the project is left unchanged. Needs the sample project open in a Unity Editor with com.unity.pipeline.

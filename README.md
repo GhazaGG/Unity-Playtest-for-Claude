@@ -1,6 +1,10 @@
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
-> **v0.1, private preview.** It has been tested by hand on one real Unity 6 + Netcode project. A public sample project and proper evals come in v0.2. See [DESIGN.md](DESIGN.md).
+> **v0.2, private preview.** Tested on one real Unity 6 + Netcode project and on
+> [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), with three evals run with and without the
+> skill ([results](#evals)). See [DESIGN.md](DESIGN.md).
+
+![A host + client playtest: probes, a client pickup, a forged request the server accepts, and a door that looks open but blocks the way](examples/playtest.gif)
 
 Claude can compile your project and run your unit tests, but it can't play your game. The bugs that reach review usually live in scenes, timing, physics and networking.
 
@@ -12,6 +16,7 @@ Claude can compile your project and run your unit tests, but it can't play your 
 - **Honest report.** A checklist with pass, fail and skip. Each case says whether a script or a human verified it. Feel, sound and visuals are never marked passed by a script.
 
 On its first real project, a Unity 6 + Netcode co-op game, it found three bugs that tests and code review had missed. They are listed in [DESIGN.md](DESIGN.md#proof-it-is-worth-it).
+A full example checklist and report from the sample project are in [examples/](examples/).
 
 ## Requirements
 
@@ -54,6 +59,34 @@ You can run the scripts yourself too:
 python skills/unity-playtest/scripts/doctor.py --project path/to/YourUnityProject
 python skills/unity-playtest/scripts/drive.py --project path/to/YourUnityProject ready my_step wait:1 cap:after
 ```
+
+## Try it on the sample
+
+[Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample) is a two-room co-op level with a key, a
+locked door and coins. It has a few bugs on purpose. Clone it, open it in Unity 6000.3, and ask Claude to playtest it
+before you read [the evals](skills/unity-playtest/evals/), which list them.
+
+## Evals
+
+Three tasks on the sample project, each run once with the skill and once without (same model, Claude Opus 5.5, same
+prompt, same Unity Editor and CLI). Each task has five checks, graded against the run's report and the project's
+state afterwards.
+
+| Task | With skill | Without | Time with / without |
+|---|---|---|---|
+| Probe Level01 for stuck objects and missing references | 5/5 | 5/5 | 598 s / 514 s |
+| Play the door-and-key How to test, solo | 5/5 | 4/5 | 526 s / 353 s |
+| Host + client, ~120 ms, a client must not take a coin from across the room | 5/5 | 5/5 | 551 s / 751 s |
+
+Honest reading:
+- Without the skill, the same model, given the Pipeline CLI, already finds every planted bug. These evals are too
+  easy to separate the two, and the next round needs harder ones.
+- The one check the baseline failed is the one the skill exists for: it marked "the door swings open" as passed from
+  a screenshot. The door snaps open in one frame; the skill run left that to a person.
+- On the host + client task, the skill run needed 53 tool calls instead of 84, and about 20 % fewer tokens.
+- The skill runs also wrote down what was wrong with the skill. v0.2 fixes all of it: probes that run as-is, a
+  `Walk()` that crosses doorways the way a player does, a built-in `status` step, exact Editor matching, and 9 new
+  pitfalls.
 
 ## What it will not do
 

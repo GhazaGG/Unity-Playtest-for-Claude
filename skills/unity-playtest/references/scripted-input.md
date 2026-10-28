@@ -20,6 +20,10 @@ Search the project for where the interact input is read:
 Follow the call chain until it reaches a public or private method with no input dependency, such as `TryInteract()`,
 `RequestGrab()` or `BeginInteraction(target)`. That method is `Press()`.
 
+`simulate_key` works only with the Input System package. A project on the old Input Manager (`Input.GetKeyDown`) cannot
+get key presses from the CLI at all, so calling the method the key handler calls is the only way. Say so in the report:
+the line that reads the key itself is not exercised.
+
 Then find out how the target is chosen. Usually a detector raycasts from the camera every frame and stores
 `CurrentTarget`. If it has a public `Detect()` or similar, the adapter calls it right after aiming, so the press uses a
 target from this frame.
@@ -32,6 +36,8 @@ Copy `templates/adapter.cs` to `.playtest/adapter.cs` (`doctor.py --init` does t
   player holds something, move the held object to the hold point too, or the carry code may drop it as out of reach.
 - **Aim:** match the look script. If it stores pitch in a field and re-applies it every frame, set that field too, or the
   view snaps back on the next frame.
+- **Walk:** set the walk speed. The template moves a `CharacterController` with `Move`, the way the movement code does;
+  a Rigidbody player needs its own version.
 - **Press:** call the method from step 1 and return its result.
 - **Status:** one line with the state the checklist asserts on (round state, score, held item, target name, position).
 - **Refill:** the timers that would knock the player out while the agent thinks.
@@ -55,7 +61,12 @@ Run them in order, with waits between them:
 python <skill>/scripts/drive.py ready go_to_door wait:1 press_door wait:1 status cap:door_open
 ```
 
+`status` is built in: it prints `Status()`. A `steps/status.cs` of your own replaces it.
+
 Rules that keep scripted runs honest and stable:
+- **Walk across what you are testing.** Teleport gets the player near the feature; it must never carry them across a
+  doorway, gap, ramp or bridge that the case is about. Use `Walk(target)` and assert that it says `reached`. A door
+  that looks open in the screenshot can still block the way.
 - **Move first, press later.** Teleport in one step, then aim and press in the next. In a session the server must
   see the move first (see [host-client.md](host-client.md)). In solo play it lets physics settle.
 - **Aim and press in the same step.** Underwater or airborne players drift between frames, and an unfocused Editor
