@@ -7,7 +7,8 @@ replication gaps, races and missing server validation, which a solo run cannot.
 ## 1. Build the client (ask the user first)
 
 The build needs the Pipeline runtime inside the player. That is a project setting, and a build that has it must never be
-shared. Say both things to the user, and get a yes before going on.
+shared. Say both things to the user, and get a yes before going on. A request that already allows the build counts
+as the yes.
 
 1. `unity command set_runtime_pipeline_settings --settings '{"enableInBuilds": true}' --confirm true`
 2. `unity command build --target <StandaloneWindows64|StandaloneOSX|StandaloneLinux64> --outputPath .playtest/builds/client/<Game>.exe --options '["Development"]' --confirm true`
@@ -28,7 +29,8 @@ Building into `.playtest/builds/` keeps the binary out of git, even in projects 
 
 - Launch the client windowed and small, with its own log:
   `<Game>.exe -screen-fullscreen 0 -screen-width 960 -screen-height 540 -logFile .playtest/builds/client.log`
-- Wait until `.unity-pipeline-runtime-port` appears next to the exe. From then on, call it with
+- Wait until `.unity-pipeline-runtime-port` appears next to the exe. The first start can take 30 s or more; poll for
+  the file for up to a minute before calling it a failure. From then on, call it with
   `--runtime-path .playtest/builds/client`. `drive.py --player .playtest/builds/client` does this for you.
 - **Latency.** Prefer the project's own test switch, if PROJECT.md lists one (for example a send delay per peer). Set
   it at runtime on both peers, before the host starts and before the client joins, so no scene file changes. The
@@ -74,6 +76,61 @@ python <skill>/scripts/drive.py host_status
 | Wear or equip by the client | Visible on the client's player from the host's view; stats changed on the client |
 | Client leaves while holding or wearing something | The host releases it (back on the rack, dropped) |
 | Join in the middle of a round | The late joiner sees the current state; objects removed earlier are not there |
+
+### Late joiners
+
+Change the state on the host first (open, take, buy, start the round), and only then start the client and join.
+Compare on both peers the networked value **and** what it drives: `IsOpen` and the hinge's rotation, a `Taken` flag
+and whether the object is active. A late joiner receives current values without a change event, so code that only
+reacts to `OnValueChanged` leaves its world stale while the value itself reads correctly. Reading only the value
+misses exactly that bug.
+
+Players have no capture command. `drive.py --player <build> cap:NAME` asks the player to save its own screen with
+`ScreenCapture.CaptureScreenshot` and waits for the file. Take the host's `cap:` from the same spot and angle when the
+two pictures are meant to be compared.
+
+### Races
+
+Two peers have to act within a few frames of each other, and two `drive.py` calls started together land a few hundred
+milliseconds apart. Schedule the action instead: `PtAt(key, isoUtc, action)` in the prelude runs it on the first frame
+after a UTC time, and both peers on one machine share the clock.
+
+1. Write a host step and a client step that schedule the same action for one time about 4 s ahead. Write both files
+   from one small Python script, so they get the same time (in Git Bash, `$(python ...)` keeps a trailing `\r` that
+   breaks the C# string):
+
+   ```python
+   import datetime as d
+   at = (d.datetime.now(d.timezone.utc) + d.timedelta(seconds=4)).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+   for side in ("h", "c"):
+       open(f".playtest/steps/race_{side}.cs", "w").write(
+           f'var ptCoin = PtFind("Coin_2"); PtAt("race1", "{at}", () => {{ Aim(PtCenter(ptCoin)); return Press(); }}); sb.Append("scheduled");\n')
+   ```
+2. Start both steps together and wait for both: `drive.py race_h & drive.py --player <build> race_c & wait`.
+3. A few seconds later, read `PtKept("race1")` and the state on both peers. Each line says how late its action ran;
+   on one PC both usually run within 10 ms of the time.
+4. **Map the window.** Repeat with the client's time later by 100, 200, 300 ms. The offset where the bug stops is the
+   size of the window, a number a fix can be checked against. The client's request reaches the server about half a
+   round trip after it runs, so add that when you turn offsets into a window on the server.
+5. **Check the cause, not only the symptom.** Repeat once with latency off. If it still happens, latency only makes it
+   likelier in play (players act on a picture that is older); it is not the cause.
+
+Each try often uses up what was raced for (a coin, a door). Count your tries per target, and if you reset a target with
+a harness shortcut on the host, say so.
+
+### Measuring a feel number
+
+A design note like "the client sees the door open within 0.25 s" is measurable; whether it *feels* quick is not.
+
+- Measure on the peer the sentence is about. "The client sees" means the client's own frames, not the host's.
+- In one step, start `PtWatch(key, cond)` and then act. `cond` reads what the screen shows (a rotation, a scale, an
+  active flag), not the networked value. Read `PtKept(key)` in a later step: seconds and frames from the action to the
+  first frame that shows the change.
+- Take five or more samples, and give the median, the range and the measured round trip next to them. A one-shot
+  feature needs a reset between samples, which is a harness shortcut: say so.
+- Note the peer's frame rate while measuring. An unfocused Editor runs few frames and inflates every number.
+- The number leaves out the input device, the display and the look of the change. Write that the felt delay is for a
+  person to judge.
 
 ## 5. Adversarial intents (layer 4)
 

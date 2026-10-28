@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: coin-race-double-score
+expected_outcome: |
+  The Editor hosts and a development build joins, with simulated latency on both peers and a measured round trip. Both
+  peers ask for the same coin close together, and the coin count rises by 20 on both peers. The coin stays spawned for
+  its 0.25 s collect animation (the despawn waits for it) and Interact has no already-taken check, so every request that
+  reaches the server in that window awards the coin; requests about 0.3 s or more apart award it once. Latency is not
+  the cause: it also doubles with latency off. Latency only shifts when the client's request reaches the server and
+  keeps the coin on remote screens for longer. Afterwards the Pipeline runtime is off for builds, the client is closed,
+  and the project is unchanged.

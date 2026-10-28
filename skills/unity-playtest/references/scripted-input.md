@@ -69,7 +69,7 @@ Rules that keep scripted runs honest and stable:
   that looks open in the screenshot can still block the way.
 - **Move first, press later.** Teleport in one step, then aim and press in the next. In a session the server must
   see the move first (see [host-client.md](host-client.md)). In solo play it lets physics settle.
-- **Aim and press in the same step.** Underwater or airborne players drift between frames, and an unfocused Editor
+- **Aim and press in the same step.** Floating or airborne players drift between frames, and an unfocused Editor
   runs few frames per second.
 - **Assert with state, confirm with a screenshot.** `cap:NAME` after the steps that change what a player sees (HUD,
   report, a door opening). Look at the picture before calling the case passed.
@@ -95,3 +95,6 @@ Then poll a step that returns the active scene name and whether `PlayerGo()` is 
 - Each state change in the feature: start, progress, end, report.
 - Rejections: not enough money, slot full, wrong item. The state must not change.
 - Timers: how long a resource lasts in the hardest area. Useful numbers for the design.
+- Response times: from a press to the first frame that shows the result. In one step, start
+  `PtWatch("open1", () => <what the screen shows>)` and then `Press()`; read `PtKept("open1")` in a later step. Wall-clock
+  waits between CLI calls are far too coarse for this. See "Measuring a feel number" in [host-client.md](host-client.md).

@@ -1,0 +1,9 @@
+schema_version: "1.1"
+name: late-joiner-door
+expected_outcome: |
+  The Editor hosts, takes the key, opens the door and takes a coin before any client exists; a development build
+  joins only after that. On the late joiner the door's IsOpen is true, but its hinge is still at 0 degrees while the
+  host shows 90, so the door looks shut on that screen. The cause: Door applies the hinge only in OnValueChanged and
+  not in OnNetworkSpawn, and a late joiner receives the value without a change event. The rest agrees: the taken coin
+  and the key are hidden on the late joiner and the coin count matches the host. Afterwards the Pipeline runtime is off
+  for builds, the client is closed, and the project is unchanged.

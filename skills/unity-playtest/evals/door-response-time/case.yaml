@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: door-response-time
+expected_outcome: |
+  Simulated latency on both peers, with a measured round trip of roughly 120-140 ms. The time is measured on the
+  client, from the client's press to the first client frame that shows the hinge moving, over five or more samples; the
+  door opens only once, so it is closed again between samples with a host-side shortcut that the report discloses. On
+  the sample this measured a median of about 0.11 s (range 0.10-0.13 s) at a round trip of about 130 ms, so the note is
+  met. The report says that the number leaves out the input device and the display, and that whether it feels
+  responsive is for a person. Afterwards the Pipeline runtime is off for builds, the client is closed, and the project
+  is unchanged.

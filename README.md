@@ -88,6 +88,32 @@ Honest reading:
   `Walk()` that crosses doorways the way a player does, a built-in `status` step, exact Editor matching, and 9 new
   pitfalls.
 
+### v0.3: harder cases and token cost
+
+v0.3 adds tools for what code reading alone cannot settle: a late joiner (`PtWatch`/`PtAt` helpers, a client
+screenshot), a race at one moment on both peers, and a feel number measured on the peer's own frames. It also adds
+a fast path for small requests, because v0.2 made light tasks cost more than doing them without the skill.
+
+| Task | Run | Checks | Tokens | Tool calls | Time |
+|---|---|---|---|---|---|
+| Probe Level01 | v0.2 with skill | 5/5 | 168k | – | 598 s |
+| Probe Level01 | without skill | 5/5 | 147k | – | 514 s |
+| Probe Level01 | **v0.3 with skill**, run 1 | 4/5 | 71k | 11 | 85 s |
+| Probe Level01 | **v0.3 with skill**, run 2 | 5/5 | 74k | 12 | 103 s |
+| Late joiner sees the open door shut (host + client) | v0.3 with skill | 5/5 | 167k | 62 | 831 s |
+| Late joiner sees the open door shut (host + client) | without skill | 5/5 | 179k | 91 | 870 s |
+
+Honest reading:
+- The fast path halves the cost of a probe-only request. Run 1 missed the spawn point inside a crate, because the
+  fast path ran only the collider-overlap probe; one line in SKILL.md fixed it, and run 2 found all three bugs.
+- On the late joiner, both configurations found the bug and its cause. The skill run used a third fewer tool calls
+  and tested with latency; the baseline did not.
+- The race and feel-number cases are in [evals](skills/unity-playtest/evals/) with measured ground truth, but were
+  not run as evals, to keep the token bill down. The helpers behind them were verified by hand in the Editor and in a
+  player build.
+- The description was not re-tuned: skill-creator's trigger loop under-counts when its workers run in parallel (they
+  share one `.claude/commands/`), and isolated spot checks triggered 3/3 with the current description.
+
 ## What it will not do
 
 - Judge feel, sound or looks. Those cases come back as "needs a human", with what to check.

@@ -1,6 +1,6 @@
 {
   "name": "unity-playtest",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Claude playtests your Unity game: Editor probes, scripted Play Mode through your real input path, host + client sessions with latency, and an honest pass/fail report. Built on Unity's Pipeline CLI.",
   "author": {
     "name": "GhazaGG"

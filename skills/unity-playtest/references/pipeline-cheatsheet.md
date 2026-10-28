@@ -91,6 +91,7 @@ After every build, run `git status` and `doctor.py`, then revert the side effect
 - A player with the runtime writes `.unity-pipeline-runtime-port` next to its exe.
 - Target it with `unity command --runtime-path <folder that holds that file> <command>`. Pass the folder, not the file.
 - Runtime commands: `eval`, `eval_file`, `console`, `console_status`, `clear_console`, `simulate_key`, `simulate_pointer`,
-  `set_timescale`, `set_target_framerate`, `log`, `runtime_status`, `quit`. There is no `run_script` and no `capture_*`.
+  `set_timescale`, `set_target_framerate`, `log`, `runtime_status`, `quit`. There is no `run_script` and no `capture_*`;
+  `drive.py --player <build> cap:NAME` takes the picture through `ScreenCapture` instead.
 - Player-side `eval` cannot see the game's assemblies, and `#r` is refused. Use `prelude.cs` (reflection) and an
   adapter written with `PtType`, `PtGet`, `PtSet` and `PtCall`.

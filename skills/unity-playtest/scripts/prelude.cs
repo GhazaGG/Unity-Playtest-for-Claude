@@ -67,3 +67,48 @@ System.Func<UnityEngine.GameObject, UnityEngine.Vector3> PtCenter = go =>
 };
 System.Func<UnityEngine.GameObject, string> PtState = go =>
     go == null ? "gone" : (go.activeInHierarchy ? "visible" : "hidden") + " at " + go.transform.position.ToString("F2");
+
+// Frame-by-frame timing that outlives the step, for feel numbers and races. Both run on this peer's own frames, just
+// before each frame renders, so they measure what this peer's screen shows. Results stay in the AppDomain under a
+// key; read them in a later step with PtKept(key).
+//   PtWatch(key, cond)        starts the clock now and notes the first frame where cond() is true: "0.153 s, 9 frames"
+//   PtAt(key, isoUtc, action) runs action on the first frame at or after a UTC time ("2026-01-31T12:00:05.000Z") and
+//                             notes when it ran and its result. Peers on one machine share the clock, so the same
+//                             time on two peers makes them act within a frame of each other.
+System.Action<string, string> PtKeep = (key, value) => System.AppDomain.CurrentDomain.SetData("unity-playtest." + key, value);
+System.Func<string, string> PtKept = key => (string)System.AppDomain.CurrentDomain.GetData("unity-playtest." + key) ?? "-";
+System.Action<string, System.Func<bool>> PtWatch = (key, condition) =>
+{
+    var start = UnityEngine.Time.realtimeSinceStartupAsDouble;
+    var frames = 0;
+    UnityEngine.Events.UnityAction tick = null;
+    tick = () =>
+    {
+        frames++;
+        string result = null;
+        try { if (condition()) result = (UnityEngine.Time.realtimeSinceStartupAsDouble - start).ToString("F3") + " s, " + frames + " frames"; }
+        catch (System.Exception e) { result = "error: " + e.Message; }
+        if (result == null && frames < 3000) return;
+        PtKeep(key, result ?? "not seen in " + frames + " frames");
+        UnityEngine.Application.onBeforeRender -= tick;
+    };
+    PtKeep(key, "waiting");
+    UnityEngine.Application.onBeforeRender += tick;
+};
+System.Action<string, string, System.Func<string>> PtAt = (key, isoUtc, action) =>
+{
+    var when = System.DateTime.Parse(isoUtc, System.Globalization.CultureInfo.InvariantCulture,
+        System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal);
+    UnityEngine.Events.UnityAction tick = null;
+    tick = () =>
+    {
+        var now = System.DateTime.UtcNow;
+        if (now < when) return;
+        UnityEngine.Application.onBeforeRender -= tick;
+        string result;
+        try { result = action(); } catch (System.Exception e) { result = "error: " + e.Message; }
+        PtKeep(key, "ran at " + now.ToString("HH:mm:ss.fff") + " UTC, " + (now - when).TotalMilliseconds.ToString("F0") + " ms late: " + result);
+    };
+    PtKeep(key, "waiting for " + when.ToString("HH:mm:ss.fff") + " UTC");
+    UnityEngine.Application.onBeforeRender += tick;
+};

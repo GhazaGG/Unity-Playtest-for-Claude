@@ -25,6 +25,26 @@ Read the reference that matches the layer you are on. Do not read them all up fr
 - [host-client.md](references/host-client.md): layers 3 and 4, the client build, latency, both-peer checks, forged intents
 - [pitfalls.md](references/pitfalls.md): read this when anything fails in a way that does not make sense
 
+## Fast path: one question, or probes only
+
+Most requests are small: "is anything stuck in this scene", "what speed does the player get carrying X", "which
+scenes are in the build". For those, the full run below costs more tokens than the answer is worth. Skip:
+- the recon, `PROJECT.md` and the adapter;
+- `CHECKLIST.md` and `REPORT.md`;
+- every reference except [editor-probes.md](references/editor-probes.md). Open the cheatsheet only if a command is
+  rejected.
+
+"Stuck in colliders" also means spawn points: they have no collider, so the overlap probe cannot see them, and a
+player who spawns there is stuck. Run the spawn point probe too.
+
+Run `doctor.py --init` if `.playtest/` does not exist yet, write one step file per question, run it with `drive.py`,
+and answer in the chat: the numbers, how you got them, and what only a person can judge. If the question needs Play
+Mode, enter it, read the values in a step, and stop Play Mode again. Take no screenshot unless the answer is about
+what something looks like.
+
+Use the full run (Step 0 onwards) when the request is a checklist, a PR's "How to test", several cases, or a host +
+client session.
+
 ## Step 0: set up (once per project)
 
 1. Run `python <skill>/scripts/doctor.py --init` from the project. It:
@@ -62,13 +82,15 @@ Open the scene and run the read-only probes that fit the feature:
 - network prefab list;
 - console baseline.
 
-Take a Scene view screenshot with `drive.py scene:NAME`, then look at it. Probes never save scenes.
+Probes never save scenes. Take a Scene view screenshot (`drive.py scene:NAME`) only of what a probe flagged, and
+only when the numbers alone do not settle it.
 
 ## Step 3: solo play (layer 2)
 
 - Enter Play Mode from the menu scene and start the session in code. Wait until the player exists.
 - Run one step per action with `drive.py`, and read the `Status()` line after each one.
-- Take Game view captures (`cap:NAME`) where the player would see a change, and look at them.
+- Take a Game view capture (`cap:NAME`) only for a case whose pass depends on what the player sees, and look at it.
+  State lines prove the rest.
 - Rules:
   - teleport and press in separate steps;
   - aim and press in the same step;
@@ -78,13 +100,19 @@ Take a Scene view screenshot with `drive.py scene:NAME`, then look at it. Probes
 ## Step 4: host + client (layer 3)
 
 This needs a development build with the Pipeline runtime enabled. That is a temporary project setting, and the build
-must never be shared. **Ask the user first.**
+must never be shared. **Ask the user first**, unless the request already allows the build; then say what you
+turn on and that you turn it off again.
 
 Then follow [host-client.md](references/host-client.md):
 - build into `.playtest/builds/`, turn the setting off again, and revert the build's side effects;
 - start the host in the Editor and the client from the build, with latency on both peers;
 - check every session case on **both** peers;
-- move the client, wait for the server to see it, then act.
+- move the client, wait for the server to see it, then act;
+- **late joiners:** change the state first, then join, and compare what the value drives (a rotation, a visible
+  object), not only the value;
+- **races:** make both peers act at one moment with `PtAt`, and map the window by offsetting one of them;
+- **feel numbers** ("the client sees it within 0.25 s"): time them on that peer's own frames with `PtWatch`, take five
+  or more samples, and report the median, the range and the measured round trip.
 
 ## Step 5: forged intents (layer 4)
 
@@ -109,6 +137,21 @@ report as text). Then:
   run made. Keep the rest of `.playtest/`: it is git-ignored, and the next run reuses it.
 
 Give the user the short summary (passed, failed, needs a human, findings) and the path to the report.
+
+## Keep the token cost down
+
+The user pays for every line you read. A playtest repeats the same calls many times, so small leaks add up.
+- **Screenshots are the most expensive output.** One image costs about as much as a page of text. Take them only
+  where the rules above say so, and never "just to see".
+- **Long step output is cut.** `drive.py` prints the first 35 and last 5 lines of a long result and keeps the whole
+  text in `.playtest/out/<step>.txt`. Search that file for what you need instead of rerunning with `--full`. Write
+  probes so the summary line comes last.
+- **Polls return big JSON.** Print only the fields you check: `status`, `result` and `totalErrors` from
+  `build_status`; the counts and the names of failed tests from `test_status`. For example, pipe the call through
+  `python -c "import json,sys; d=json.load(sys.stdin); print(d.get('status'), d.get('result'), d.get('totalErrors'))"`.
+- **Console:** read `console_status` first, and pull entries only when the counts show something new.
+- **Discovery commands** (`unity list`, `--detail full`) only when a command is rejected.
+- **Read each reference once.** Do not reread a file that is already in the conversation.
 
 ## Ground rules
 

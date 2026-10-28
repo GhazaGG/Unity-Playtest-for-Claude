@@ -184,6 +184,19 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
   - exact Editor matching in `doctor.py`, and `--project-path` and a keepalive in `drive.py`;
   - pitfalls 19 to 27.
 
+**v0.3 result (2026-10-28):**
+- Sample commit adds two bugs code reading cannot prove: a door that is not applied on spawn (late joiners see it
+  shut) and a 0.25 s collect animation with no taken-guard (two near-simultaneous picks score twice).
+- New prelude helpers: `PtAt` (act at one UTC moment, for races across peers), `PtWatch` (time a condition on the
+  peer's own frames), `PtKeep`/`PtKept` (keep a value between steps). `drive.py` got a per-target run file, a `ready`
+  that waits for eval to answer, and `cap:` for players through `ScreenCapture`.
+- Token cost became a design goal: v0.2 cost more than no skill on light tasks (probe 168k vs 147k, solo 155k vs
+  123k). A fast path for one-question and probe-only requests brought the probe to 71-74k. Output is capped, polls
+  print only the checked fields, and screenshots are taken only where a person must look.
+- Late joiner eval: 5/5 with and without the skill (62 vs 91 tool calls, 167k vs 179k tokens). Race and feel-number
+  evals have measured ground truth but were not run, to save tokens.
+- The description tuning loop was skipped (see README).
+
 ## 9. Launch plan (for stars)
 
 - **README**:
@@ -208,7 +221,8 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 |---|---|
 | v0.1 | SKILL.md, references, `drive.py` with both preludes, `doctor.py`, templates. Tested by hand on one project. Repo stays private. |
 | v0.2 | Sample Unity project (own repo), three evals with and without the skill, examples, and the README GIF. Done 2026-10-28. |
-| v0.3 | Description tuned for triggering (skill-creator loop). Make the repo public and launch. |
+| v0.3 | Late joiner, race and feel-number tools and evals; token fast path. Done 2026-10-28. |
+| v0.4 | Make the repos public and launch; run the race and feel-number evals. |
 
 ## 12. Decisions (2026-10-27)
 

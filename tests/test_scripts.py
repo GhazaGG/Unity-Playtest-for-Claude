@@ -43,6 +43,30 @@ class DriveTests(unittest.TestCase):
         self.assertEqual(drive.find_image({"width": 1280, "png": "A" * 2000, "encoding": "png"}), "A" * 2000)
         self.assertIsNone(drive.find_image({"width": 1280}))
 
+    def test_long_output_keeps_head_and_tail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            text = "\n".join(f"line {i}" for i in range(100))
+            short = drive.cap_output("probe", text, Path(tmp))
+            self.assertIn("line 0", short)
+            self.assertIn("line 99", short)
+            self.assertNotIn("line 50\n", short)
+            self.assertEqual((Path(tmp) / "out" / "probe.txt").read_text(encoding="utf-8"), text)
+
+    def test_player_capture_waits_for_the_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            def fake_unity(args, player=None, **_):
+                path = args[2].split('"')[1]
+                Path(path).write_bytes(b"png")
+                return True, {"result": "ok"}
+            real, drive.unity = drive.unity, fake_unity
+            try:
+                line = drive.run_step("cap:client", work, "build")
+            finally:
+                drive.unity = real
+            self.assertIn("saved", line)
+            self.assertTrue((work / "shots" / "client.png").is_file())
+
     def test_find_project_walks_up(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_project(Path(tmp))

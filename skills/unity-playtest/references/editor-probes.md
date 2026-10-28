@@ -8,8 +8,12 @@ Probes read the open scene and never save it. Each probe below is a **step body*
 In Edit Mode the adapter looks nothing up, so probes run before the adapter is filled in. A probe-only run does not
 need the adapter at all.
 
-Probes are cheap and catch a lot. Start every run with them, and add a screenshot so a person can see what the numbers
-describe. They use `UnityEditor`, so they run in the Editor only, never with `--player`.
+Probes are cheap and catch a lot. Start every run with them. Add a screenshot only for a finding that the numbers do
+not settle; images cost far more tokens than text. Probes use `UnityEditor`, so they run in the Editor only, never
+with `--player`.
+
+`drive.py` prints the first 35 and last 5 lines of a long result and keeps the rest in `.playtest/out/<step>.txt`. End
+every probe with a count or a summary line, so that line is still printed when the list is cut.
 
 ## Scene inventory
 
@@ -45,7 +49,7 @@ foreach (var a in UnityEngine.Object.FindObjectsByType<UnityEngine.Collider>(Uni
         ptFound++;
     }
 }
-if (ptFound == 0) sb.AppendLine("no collider is more than 2 cm inside another");
+sb.AppendLine(ptFound == 0 ? "no collider is more than 2 cm inside another" : ptFound + " pairs more than 2 cm deep");
 ```
 
 Read the list with the design in mind: a trigger that is meant to overlap (a pickup radius resting on a table) is
@@ -196,7 +200,7 @@ try
     }
 }
 finally { ptLogs.GetMethod("EndGettingEntries").Invoke(null, null); }
-if (ptCount == 0) sb.AppendLine("console is empty");
+sb.AppendLine(ptCount == 0 ? "console is empty" : ptCount + " console entries");
 ```
 
 ## Scene view screenshots

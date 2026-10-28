@@ -8,12 +8,13 @@ A STEP is one of:
   NAME         runs .playtest/steps/NAME.cs, after prelude.cs and .playtest/adapter.cs
   status       prints the adapter's Status() line (built in; a steps/status.cs replaces it)
   wait:SEC     sleeps for SEC seconds (a float is fine)
-  ready        waits until the Editor is idle: not compiling, no domain reload (Editor only)
-  cap:NAME     saves the Game view to .playtest/shots/NAME.png (Editor only)
+  ready        waits until the Editor is idle and answers an eval (Editor only)
+  cap:NAME     saves the Game view (a player's screen with --player) to .playtest/shots/NAME.png
   scene:NAME   saves the Scene view to .playtest/shots/NAME.png (Editor only)
 
-Every step prints one line: [NAME] followed by the step's result or the CLI error. Screenshots are taken inline
-and decoded here. capture_*_view --save_path is never used, because it writes into Assets/.
+Every step prints [NAME] followed by the step's result or the CLI error. A result longer than 40 lines prints its
+first and last lines only, and the whole text goes to .playtest/out/NAME.txt (--full prints everything). Screenshots
+are taken inline and decoded here. capture_*_view --save_path is never used, because it writes into Assets/.
 Python 3.8+, stdlib only.
 """
 import argparse
@@ -26,6 +27,7 @@ import time
 from pathlib import Path
 
 PRELUDE = Path(__file__).resolve().parent / "prelude.cs"
+HEAD_LINES, TAIL_LINES = 35, 5  # a probe's summary or count line comes last, so keep the tail too
 
 # Editor steps only. An unfocused Editor can stop running Play Mode frames altogether (Time.frameCount stays put)
 # until something asks for updates. While playing, ask for a player-loop update on every Editor tick. The callback
@@ -86,6 +88,18 @@ def build_source(step_body, adapter_text, editor=True):
     return "\n".join(parts)
 
 
+def cap_output(name, text, work):
+    """Long step output costs the caller tokens on every run. Print the head and tail; keep the rest in a file."""
+    lines = text.splitlines()
+    if len(lines) <= HEAD_LINES + TAIL_LINES:
+        return text
+    out = work / "out" / f"{name}.txt"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    cut = len(lines) - HEAD_LINES - TAIL_LINES
+    return "\n".join(lines[:HEAD_LINES] + [f"... {cut} more lines, all {len(lines)} in {out}"] + lines[-TAIL_LINES:])
+
+
 def find_image(data):
     """capture_*_view returns the PNG as base64 under a key that differs by version; take the longest string."""
     if not isinstance(data, dict):
@@ -94,7 +108,24 @@ def find_image(data):
     return max(strings, key=len) if strings else None
 
 
-def run_step(step, work, player):
+def capture_player(name, work, player):
+    """Players have no capture_* command, so ask the player to write its own screen and wait for the file."""
+    out = (work / "shots" / f"{name}.png").resolve()
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if out.exists():
+        out.unlink()
+    path = str(out).replace("\\", "/")
+    ok, data = unity(["eval", "--code", f'UnityEngine.ScreenCapture.CaptureScreenshot("{path}"); return "ok";'], player)
+    if not ok:
+        return f"[{name}] capture failed: {data}"
+    for _ in range(50):  # written at the end of the player's next frame
+        if out.exists() and out.stat().st_size:
+            return f"[{name}] saved {out}"
+        time.sleep(0.1)
+    return f"[{name}] capture failed: no file after 5 s"
+
+
+def run_step(step, work, player, full=False):
     project = work.parent
     if step.startswith("wait:"):
         time.sleep(float(step[5:]))
@@ -107,14 +138,19 @@ def run_step(step, work, player):
             # status is "ready" in Edit Mode and "playing" (or "paused") in Play Mode.
             if ok and isinstance(data, dict) and data.get("status") in ("ready", "playing", "paused") \
                     and not data.get("compiling") and not data.get("domainReloadInProgress"):
-                return "[ready] Editor ready, play mode " + str(data.get("playMode"))
+                # editor_status can say ready a few seconds before eval works, right after a domain reload.
+                answered, _ = unity(["eval", "--code", 'return "ok";'], project=project, timeout=15)
+                if answered:
+                    return "[ready] Editor ready, play mode " + str(data.get("playMode"))
             time.sleep(1)
         return "[ready] gave up after 120 s"
     for prefix, command in (("cap:", "capture_game_view"), ("scene:", "capture_scene_view")):
         if step.startswith(prefix):
             name = step[len(prefix):]
             if player:
-                return f"[{name}] skipped: players have no {command}"
+                if prefix == "scene:":
+                    return f"[{name}] skipped: players have no Scene view"
+                return capture_player(name, work, player)
             ok, data = unity([command], project=project)
             image = find_image(data) if ok else None
             if not image:
@@ -132,25 +168,27 @@ def run_step(step, work, player):
         return f"[{step}] no such step file: {step_file}"
     adapter = work / "adapter.cs"
     source = build_source(body, adapter.read_text(encoding="utf-8") if adapter.is_file() else "", editor=not player)
-    run_file = work / "_run.cs"
+    # One file per target, so an Editor step and a player step started together (a race) don't overwrite each other.
+    run_file = work / (f"_run.{Path(player).resolve().name}.cs" if player else "_run.cs")
     run_file.write_text(source, encoding="utf-8")
     ok, data = unity(["eval_file", "--file", str(run_file), "--timeout", "30"], player, project=project)
     if ok and isinstance(data, dict):
         data = data.get("result")
-    return f"[{step}] {data}"
+    return f"[{step}] {data if full else cap_output(step, str(data), work)}"
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--project", default=".", help="Unity project folder (default: search upwards from here)")
     parser.add_argument("--player", help="player build folder that holds .unity-pipeline-runtime-port")
+    parser.add_argument("--full", action="store_true", help="print long step results whole instead of head and tail")
     parser.add_argument("steps", nargs="+")
     args = parser.parse_args(argv)
     work = find_project(args.project) / ".playtest"
     if not work.is_dir():
         sys.exit(f"{work} does not exist yet. Run: python doctor.py --init")
     for step in args.steps:
-        line = run_step(step, work, args.player)
+        line = run_step(step, work, args.player, args.full)
         if line:
             print(line, flush=True)
 
