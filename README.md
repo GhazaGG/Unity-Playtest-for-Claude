@@ -115,6 +115,24 @@ Honest reading:
 - The description was not re-tuned: skill-creator's trigger loop under-counts when its workers run in parallel (they
   share one `.claude/commands/`), and isolated spot checks triggered 3/3 with the current description.
 
+### v0.3.2: real key presses
+
+`PtKey` presses keys through the Input System, so the game's own action map and bindings run. The eval: an Esc menu
+that leaves the player's action map disabled when it is closed with Esc (only Resume turns it back on).
+
+| Task | Run | Checks | Tokens | Tool calls | Time |
+|---|---|---|---|---|---|
+| Esc menu leaves E dead (solo) | v0.3.2 with skill | 5/5 | 101k | 21 | 173 s |
+| Esc menu leaves E dead (solo) | without skill | 5/5 | 138k | 48 | 375 s |
+
+Honest reading:
+- Both found the bug and its cause, and both pressed real keys. Once the case says "press E", the model reaches for
+  the Input System by itself. This eval does not separate the two on findings either.
+- The skill run took less than half the tool calls and time, and a quarter fewer tokens. The baseline first tried
+  `runtime simulate_key`, which never reached the game's `Update`, then queued events itself. It also saved
+  screenshots into `Assets/Temp` and had to delete them.
+- One run per arm.
+
 ## How it relates to Unity's own Pipeline skill
 
 Unity ships an agent skill for the Pipeline CLI itself: which commands exist and how to call them. This skill sits on

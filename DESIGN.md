@@ -211,7 +211,11 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 - The sample moved E and Esc to the Input System and got an Esc menu with a planted bug: closing it with Esc leaves
   the Player action map disabled; only Resume enables it. The `esc-menu-input` eval checks that a run presses the keys
   and finds it. Its ground truth was measured with `PtKey` (E dead after an Esc close, back after Resume, a 1 s hold
-  opens the door); the eval itself was not run yet.
+  opens the door).
+- Eval run once per arm: 5/5 with the skill (101k tokens, 21 tool calls, 173 s) and 5/5 without (138k, 48, 375 s).
+  The baseline also pressed real keys, after `runtime simulate_key` failed to reach `Update`, so the case still does
+  not separate the arms on findings, only on cost. A case that needs the key without saying so ("the menu works") or
+  a hold-to-interact timing may.
 
 ## 9. Launch plan (for stars)
 
