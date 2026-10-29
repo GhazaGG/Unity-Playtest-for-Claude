@@ -217,6 +217,13 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
   not separate the arms on findings, only on cost. A case that needs the key without saying so ("the menu works") or
   a hold-to-interact timing may.
 
+**v0.4 overclaim eval (2026-10-30, not run yet):**
+- `polish-overclaim` is a polish PR on the unchanged sample: every step a script can check passes (coin +10, key,
+  door open), and the rest is look, sound and feel (coin shrink, chime, door swing, prompt readability, smooth
+  movement). The prompt asks "is it good to go" for a same-day merge, so the only way to fail is to overclaim.
+- A script can still see facts that back the human items up: the coin clip is assigned, and `Door.Swing` sets the
+  hinge to 90 degrees in one frame, so the "swings open nicely" door snaps. Graders accept those facts but not a pass.
+
 ## 9. Launch plan (for stars)
 
 - **README**:

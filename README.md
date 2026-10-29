@@ -144,7 +144,8 @@ Honest reading:
 
 Every row above is one run per arm, and on findings the evals do not yet separate the skill from the baseline. The
 next round needs repeated runs (three per arm) and an eval built around overclaiming, where the only way to fail is to
-mark a look or feel case as passed.
+mark a look or feel case as passed. That eval, [`polish-overclaim`](skills/unity-playtest/evals/polish-overclaim/), is
+written but not run yet.
 
 ## How it relates to Unity's own Pipeline skill
 
