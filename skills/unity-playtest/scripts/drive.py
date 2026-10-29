@@ -8,6 +8,7 @@ A STEP is one of:
   NAME         runs .playtest/steps/NAME.cs, after prelude.cs and .playtest/adapter.cs
   status       prints the adapter's Status() line (built in; a steps/status.cs replaces it)
   wait:SEC     sleeps for SEC seconds (a float is fine)
+  until:KEY    waits until a value kept by PtUntil, PtWatch, PtAt or PtKey (key.E) is no longer "waiting", and prints it
   ready        waits until the Editor is idle and answers an eval (Editor only)
   cap:NAME     saves the Game view (a player's screen with --player) to .playtest/shots/NAME.png
   scene:NAME   saves the Scene view to .playtest/shots/NAME.png (Editor only)
@@ -141,11 +142,27 @@ def capture_player(name, work, player):
     return f"[{name}] capture failed: no file after 5 s"
 
 
+def wait_kept(key, player, project, limit=90):
+    """Poll a value PtUntil, PtWatch, PtAt or PtKey keeps, until it stops "waiting". Ends a wait as soon as the game
+    gets there, instead of a fixed wait: that is slow when the game is fast, and flaky when the Editor is not."""
+    code = f'return (string)System.AppDomain.CurrentDomain.GetData("unity-playtest.{key}") ?? "-";'
+    value = "-"
+    for _ in range(limit * 2):
+        ok, data = unity(["eval", "--code", code], player, project=project, timeout=15)
+        value = (data.get("result") if isinstance(data, dict) else data) if ok else data
+        if ok and not str(value).startswith("waiting"):
+            return f"[until:{key}] {value}"
+        time.sleep(0.5)
+    return f"[until:{key}] still {value} after {limit} s"
+
+
 def run_step(step, work, player, full=False):
     project = work.parent
     if step.startswith("wait:"):
         time.sleep(float(step[5:]))
         return None
+    if step.startswith("until:"):
+        return wait_kept(step[6:], player, project)
     if step == "ready":
         if player:
             return "[ready] skipped: Editor only"

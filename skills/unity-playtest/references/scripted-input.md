@@ -20,9 +20,18 @@ Search the project for where the interact input is read:
 Follow the call chain until it reaches a public or private method with no input dependency, such as `TryInteract()`,
 `RequestGrab()` or `BeginInteraction(target)`. That method is `Press()`.
 
-`simulate_key` works only with the Input System package. A project on the old Input Manager (`Input.GetKeyDown`) cannot
-get key presses from the CLI at all, so calling the method the key handler calls is the only way. Say so in the report:
-the line that reads the key itself is not exercised.
+**With the Input System package, press the real key.** `PtKey("E", 0f)` queues the key on the keyboard, so the game's
+own action map, binding and `WasPressedThisFrame` or `performed` callback run, and the key comes up two frames or
+more later. Use it for the case under test, and `Press()` only for setup. It catches what `Press()` cannot: an action
+map that a pause menu or cutscene left disabled, a wrong binding, a UI that eats the key, a hold that is too short.
+`PtKey("E", 1.5f)` holds the key for 1.5 s, for hold-to-interact.
+
+The key acts on a later frame, so the step cannot return its effect. Watch for it in the same step and wait in
+`drive.py` (see "Wait for a state, not for a time" below).
+
+A project on the old Input Manager (`Input.GetKeyDown`) cannot get key presses from the CLI at all, so calling the
+method the key handler calls is the only way. Say so in the report: the line that reads the key itself is not
+exercised.
 
 Then find out how the target is chosen. Usually a detector raycasts from the camera every frame and stores
 `CurrentTarget`. If it has a public `Detect()` or similar, the adapter calls it right after aiming, so the press uses a
@@ -62,6 +71,26 @@ python <skill>/scripts/drive.py ready go_to_door wait:1 press_door wait:1 status
 ```
 
 `status` is built in: it prints `Status()`. A `steps/status.cs` of your own replaces it.
+
+### Wait for a state, not for a time
+
+`wait:1` is too long when the game is quick, and too short when the Editor is in the background. Instead, start
+`PtUntil` in the step and let `drive.py until:KEY` poll it:
+
+```csharp
+// .playtest/steps/press_door_key.cs
+var door = PtFind("Door_A");
+Aim(PtCenter(door));
+PtUntil("door", () => Status().Contains("door=open"), () => Status(), 5f);
+sb.Append(PtKey("E", 0f));
+```
+
+```
+python <skill>/scripts/drive.py press_door_key until:door until:key.E
+```
+
+`until:door` prints `0.120 s, 7 frames` when the door opened, or `TIMEOUT after 5.0 s, 300 frames: <Status()>`, so a
+failure already shows the state it ended in. `until:key.E` shows that the key went down and came up again.
 
 Rules that keep scripted runs honest and stable:
 - **Walk across what you are testing.** Teleport gets the player near the feature; it must never carry them across a

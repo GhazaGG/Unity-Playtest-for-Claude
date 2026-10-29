@@ -94,6 +94,8 @@ only when the numbers alone do not settle it.
 
 - Enter Play Mode from the menu scene and start the session in code. Wait until the player exists.
 - Run one step per action with `drive.py`, and read the `Status()` line after each one.
+- With the Input System, press the case under test with `PtKey`, not `Press()`, so the game's own key reading runs.
+- Wait for a state with `PtUntil` and `until:KEY`, not with a fixed `wait:`.
 - Take a Game view capture (`cap:NAME`) only for a case whose pass depends on what the player sees, and look at it.
   State lines prove the rest.
 - Rules:

@@ -8,7 +8,8 @@
 //   Teleport(pos)     move the player there (a harness shortcut: say so in the report)
 //   Walk(pos)         walk there with the game's own movement; "reached ..." or "BLOCKED at ..."
 //   Aim(pos)          turn the view so the interaction ray points at pos, then refresh the detector this frame
-//   Press()           do exactly what the interact key does, and return a short result
+//   Press()           do exactly what the interact key does, and return a short result. With the Input System,
+//                     steps press the real key with PtKey("E", 0f) instead; Press() is for setup and old projects
 //   Status()          one line of game state used in every step's output
 //   Refill()          top up timers that keep running while the agent thinks (stamina, oxygen, hunger...)
 

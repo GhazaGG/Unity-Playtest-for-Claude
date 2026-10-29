@@ -67,6 +67,15 @@ class DriveTests(unittest.TestCase):
             self.assertIn("saved", line)
             self.assertTrue((work / "shots" / "client.png").is_file())
 
+    def test_until_polls_past_waiting(self):
+        answers = iter(["waiting", "waiting", "0.120 s, 7 frames"])
+        real_unity, real_sleep = drive.unity, drive.time.sleep
+        drive.unity, drive.time.sleep = (lambda *a, **k: (True, {"result": next(answers)})), (lambda _: None)
+        try:
+            self.assertEqual(drive.run_step("until:door", Path("w"), None), "[until:door] 0.120 s, 7 frames")
+        finally:
+            drive.unity, drive.time.sleep = real_unity, real_sleep
+
     def test_falls_back_to_flat_names_on_pipeline_08(self):
         calls = []
         def fake_run(cmd, **_):
