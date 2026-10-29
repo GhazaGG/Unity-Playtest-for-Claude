@@ -2,7 +2,7 @@
 
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
-> **v0.3.3, private preview.** Tested on one real Unity 6 + Netcode project and on
+> **v0.3.4, early release.** Tested on one real Unity 6 + Netcode project and on
 > [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), with evals run with and without the
 > skill ([results](#evals)). See [DESIGN.md](DESIGN.md).
 
@@ -54,6 +54,11 @@ works into `.playtest/adapter.cs`, so scripted presses take the same code path a
 
 It asks before anything that changes project settings: the host + client run needs a development build with the
 Pipeline runtime turned on for a moment. Claude turns it off again and reverts what the build touched.
+
+Working in git worktrees, one per task? Keep one map for all of them: `doctor.py --init --from <dir>` takes
+`PROJECT.md` and the adapter from a shared folder, and `doctor.py --save <dir>` puts them back after recon. For agents
+that work alone, `PROJECT.md` has a standing-permissions line, so a host + client run does not stop to ask. Each report
+ends with a paste-ready block for the PR.
 
 You can run the scripts yourself too:
 
@@ -134,6 +139,12 @@ Honest reading:
   `runtime simulate_key`, which never reached the game's `Update`, then queued events itself. It also saved
   screenshots into `Assets/Temp` and had to delete them.
 - One run per arm.
+
+### What the evals do not show yet
+
+Every row above is one run per arm, and on findings the evals do not yet separate the skill from the baseline. The
+next round needs repeated runs (three per arm) and an eval built around overclaiming, where the only way to fail is to
+mark a look or feel case as passed.
 
 ## How it relates to Unity's own Pipeline skill
 

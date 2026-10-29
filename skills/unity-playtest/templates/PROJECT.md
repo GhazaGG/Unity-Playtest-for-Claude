@@ -23,6 +23,10 @@ Written once during recon and reused by later runs. Keep it short, and update it
 - Leave (the in-game leave, not "cancel connect"): <Type.Method>
 - Simulated latency, if the project has it: <field or setting, e.g. a send delay in ms per peer>
 
+## Standing permissions
+- Client build with the Pipeline runtime for host + client: <ask each time | allowed>
+- Shared map dir for other working copies (doctor.py --from / --save): <path, or "none">
+
 ## Timers that drain while the agent thinks
 - <name: field to refill, or "none">
 

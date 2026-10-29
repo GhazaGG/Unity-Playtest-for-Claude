@@ -1,6 +1,6 @@
 ---
 name: unity-playtest
-description: Playtest a Unity game for real. Probe scenes in the open Editor, play the feature in Play Mode through the game's own input path, run host + client sessions with simulated latency, and report pass/fail with evidence, all through Unity's Pipeline CLI (com.unity.pipeline). Use whenever the user wants a Unity feature, scene, PR or bug fix tested, playtested, QA'd, smoke-tested or verified in the Editor or in multiplayer, asks "does this actually work in game", or wants a test checklist run, even if they never say "playtest".
+description: Playtest a Unity game for real. Probe scenes in the open Editor, play the feature in Play Mode through the game's own input path, run host + client sessions with simulated latency, and report pass/fail with evidence, all through Unity's Pipeline CLI (com.unity.pipeline). Use whenever the user wants a Unity feature, scene, PR or bug fix tested, playtested, QA'd, smoke-tested or verified in the Editor or in multiplayer, asks "does this actually work in game", or wants a test checklist run, even if they never say "playtest". Not for only running the unit test suite, checking compile errors, or writing test code.
 ---
 
 # Unity playtest
@@ -61,6 +61,11 @@ references use the 0.9 names, and [pipeline-cheatsheet.md](references/pipeline-c
    - copies the templates into `.playtest/`.
 
    If the package or CLI is missing, tell the user what to install and stop. Do not add packages yourself.
+
+   **Several working copies of one game** (git worktrees, one per task): keep one map for all of them. Run
+   `doctor.py --init --from <shared dir>` to take `PROJECT.md` and `adapter.cs` from there, and
+   `doctor.py --save <shared dir>` after recon or after you correct them. If the user or the project's agent
+   instructions name a shared dir, use it.
 2. If `.playtest/PROJECT.md` is still the template, do recon:
    - find how the interact key becomes an action;
    - find how a session starts, joins and leaves;
@@ -77,9 +82,14 @@ Give every case a layer:
 - `human` when only a person can judge it (feel, sound, look, fun).
 
 Show the user the list before running long sessions, so they can add the case they actually worry about. If nobody
-can answer, go ahead with the probe and solo cases, and run session cases only when the request asked for them.
+can answer (an agent working alone), go ahead with the probe and solo cases, and run session cases only when the
+request or the standing permissions in `PROJECT.md` allow them.
 
 ## Step 2: probes (layer 1)
+
+If the change touched code, run the project's own test suite first (cheatsheet: `test run`) and stop on a failure:
+a playtest of a broken build wastes the whole run. Never run tests while Play Mode is on, yours or the user's
+(pitfall 35).
 
 Open the scene and run the read-only probes that fit the feature:
 - objects inside colliders;
@@ -109,8 +119,9 @@ only when the numbers alone do not settle it.
 ## Step 4: host + client (layer 3)
 
 This needs a development build with the Pipeline runtime enabled. That is a temporary project setting, and the build
-must never be shared. **Ask the user first**, unless the request already allows the build; then say what you
-turn on and that you turn it off again.
+must never be shared. **Ask the user first**, unless the request or the standing permissions in `PROJECT.md` already
+allow the build; then say what you turn on and that you turn it off again. With no one to ask and no permission,
+skip the session cases and list them as skipped.
 
 Then follow [host-client.md](references/host-client.md):
 - build into `.playtest/builds/`, turn the setting off again, and revert the build's side effects;
@@ -146,6 +157,8 @@ report as text). Then:
   run made. Keep the rest of `.playtest/`: it is git-ignored, and the next run reuses it.
 
 Give the user the short summary (passed, failed, needs a human, findings) and the path to the report.
+`.playtest/` is git-ignored, so the report never reaches the team by itself: when the work goes into a PR, paste the
+report's "For the PR" block into the PR description, in the project's own sections if it has them.
 
 ## Keep the token cost down
 

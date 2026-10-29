@@ -27,6 +27,15 @@ Setup:
 ## Still needs a human
 - <case ID: exactly what to look, listen or feel for>
 
+## For the PR
+Paste-ready. Keep the words "verified by script" and "verified by a person" apart.
+
+**Tested (verified by script):**
+- <case: what ran and the state that proved it>
+
+**Not tested / needs a person:**
+- <case: what to look, listen or feel for, or why it was skipped>
+
 ## Cleanup
 - Play Mode stopped, client closed, `git status` clean (doctor.py output: <OK / warnings>).
 - Temporary settings reverted: <list, or "none">.

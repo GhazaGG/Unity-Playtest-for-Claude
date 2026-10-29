@@ -245,7 +245,8 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 | v0.3.1 | Pipeline 0.9 support: grouped command names with a fallback to 0.8, the define-based runtime toggle, pitfalls 31-33. |
 | v0.3.2 | `PtKey` (a real key press through the Input System), `PtUntil` and `drive.py until:KEY` (wait for a state, not a time). |
 | v0.3.3 | Agensi listing: `tools/package_agensi.py` builds a zip with SKILL.md at the root; `drive.py` reads `prelude.cs` from `.playtest/` when it runs apart from the skill. |
-| v0.4 | Launch posts; run the race and feel-number evals. |
+| v0.3.4 | Feedback from the first team project: `doctor.py --from`/`--save` share one map across worktrees; standing permissions in `PROJECT.md`; the test suite runs first and never during Play Mode (pitfall 35); a paste-ready PR block in the report; the description excludes unit-test-only requests. |
+| v0.4 | Launch posts; run the race and feel-number evals; three runs per arm and an overclaim eval. |
 
 ## 12. Decisions (2026-10-27)
 

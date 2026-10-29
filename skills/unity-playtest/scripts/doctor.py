@@ -4,6 +4,8 @@
 Usage:
   doctor.py [--project DIR]          check, before and after a run
   doctor.py [--project DIR] --init   also create the self-ignoring .playtest/ folder with templates
+  doctor.py --init --from DIR        take PROJECT.md and adapter.cs from DIR (a map shared by several worktrees)
+  doctor.py --save DIR               copy this project's PROJECT.md and adapter.cs to DIR for the next worktree
 
 Exits 1 when a check FAILs; WARN lines do not change the exit code. Python 3.8+, stdlib only.
 """
@@ -16,6 +18,8 @@ import sys
 from pathlib import Path
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
+# The project-specific files that recon writes; every working copy of one game can share them.
+MAP_FILES = ("PROJECT.md", "adapter.cs")
 RUNTIME_CONFIG = Path("ProjectSettings/Packages/com.unity.pipeline/RuntimePipelineConfig.json")
 
 
@@ -39,9 +43,9 @@ def editor_row(listing, project):
     return []
 
 
-def init_workspace(project):
+def init_workspace(project, shared=None):
     """.playtest/ with a .gitignore of '*': git ignores the folder and everything in it, and the project's own
-    .gitignore stays untouched."""
+    .gitignore stays untouched. With `shared`, the map files come from there unless this copy already filled them in."""
     work = project / ".playtest"
     for sub in ("steps", "shots", "builds"):
         (work / sub).mkdir(parents=True, exist_ok=True)
@@ -52,7 +56,31 @@ def init_workspace(project):
         target = work / name
         if not target.exists() and (TEMPLATES / name).is_file():
             target.write_text((TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8")
+    if shared is not None:
+        for name in MAP_FILES:
+            source, target = Path(shared) / name, work / name
+            if source.is_file() and (not target.exists() or is_template(target)):
+                shutil.copyfile(source, target)
     return work
+
+
+def is_template(path):
+    template = TEMPLATES / path.name
+    return template.is_file() and path.read_text(encoding="utf-8") == template.read_text(encoding="utf-8")
+
+
+def save_map(project, dest):
+    """Copy the filled-in map files to `dest`; returns the names copied. Templates are skipped, so an empty map never
+    overwrites a good one."""
+    dest = Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for name in MAP_FILES:
+        source = project / ".playtest" / name
+        if source.is_file() and not is_template(source):
+            shutil.copyfile(source, dest / name)
+            saved.append(name)
+    return saved
 
 
 def leftovers(project):
@@ -105,6 +133,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--project", default=".")
     parser.add_argument("--init", action="store_true")
+    parser.add_argument("--from", dest="shared", metavar="DIR", help="with --init: shared PROJECT.md and adapter.cs")
+    parser.add_argument("--save", metavar="DIR", help="copy the filled-in PROJECT.md and adapter.cs to DIR")
     args = parser.parse_args(argv)
 
     project = find_project(args.project)
@@ -140,13 +170,22 @@ def main(argv=None):
             report("WARN", "Editor found but Pipeline server not reachable yet (still loading, or a domain reload)")
 
     if args.init:
-        work = init_workspace(project)
+        work = init_workspace(project, args.shared)
         report("OK", f"workspace {work} (git ignores it through its own .gitignore)")
+        if args.shared:
+            filled = [n for n in MAP_FILES if not is_template(work / n)]
+            report("OK" if filled else "WARN", f"map from {args.shared}: {', '.join(filled)}" if filled
+                   else f"no filled-in map in {args.shared}: do recon, then doctor.py --save {args.shared}")
         if not TEMPLATES.is_dir():  # a marketplace that runs this script on its own, away from the skill's files
             report("WARN", "templates are not next to doctor.py: write the skill's templates/*.md, templates/adapter.cs"
                            f" and scripts/prelude.cs into {work} yourself")
     elif not (project / ".playtest" / ".gitignore").is_file():
         report("WARN", "no .playtest/ yet: run doctor.py --init")
+
+    if args.save:
+        saved = save_map(project, args.save)
+        report("OK" if saved else "WARN", f"map saved to {args.save}: {', '.join(saved)}" if saved
+               else "nothing to save: PROJECT.md and adapter.cs are still the templates")
 
     for level, message in leftovers(project):
         report(level, message)

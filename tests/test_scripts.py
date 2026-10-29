@@ -118,6 +118,23 @@ class DoctorTests(unittest.TestCase):
             for name in ("steps", "shots", "builds", "PROJECT.md", "CHECKLIST.md", "REPORT.md", "adapter.cs"):
                 self.assertTrue((work / name).exists(), name)
 
+    def test_map_is_shared_between_working_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            shared = Path(tmp) / "shared"
+            first = make_project(Path(tmp) / "a")
+            doctor.init_workspace(first)
+            self.assertEqual(doctor.save_map(first, shared), [], "a template must not become the shared map")
+            (first / ".playtest" / "PROJECT.md").write_text("# Playtest map: Game\n", encoding="utf-8")
+            self.assertEqual(doctor.save_map(first, shared), ["PROJECT.md"])
+
+            second = doctor.init_workspace(make_project(Path(tmp) / "b"), shared)
+            self.assertEqual((second / "PROJECT.md").read_text(encoding="utf-8"), "# Playtest map: Game\n")
+            self.assertTrue(doctor.is_template(second / "adapter.cs"))
+
+            (second / "PROJECT.md").write_text("# local edits\n", encoding="utf-8")
+            doctor.init_workspace(Path(tmp) / "b", shared)
+            self.assertEqual((second / "PROJECT.md").read_text(encoding="utf-8"), "# local edits\n", "kept")
+
     def test_runtime_left_enabled_in_builds_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_project(Path(tmp))
