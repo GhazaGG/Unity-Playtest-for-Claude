@@ -106,38 +106,60 @@ System.Action<string, System.Func<bool>> PtWatch = (key, condition) => PtUntil(k
 
 // A real key press through the Input System, so the game's own key reading runs: its action map, its bindings,
 // WasPressedThisFrame and performed callbacks. Press() skips all of that. key is a Key name ("E", "Space",
-// "LeftShift"); the key goes down now and up after holdSeconds, and never in the same frame. The result is kept under
-// "key." + key once the key is up. Projects on the old Input Manager cannot get keys this way; use Press() there.
+// "LeftShift"); the key goes down in the next input update and up after holdSeconds, and never in the same update. The
+// result is kept under "key." + key once the key is up. Projects on the old Input Manager cannot get keys this way;
+// use Press() there.
+// The key is written straight into the keyboard's state right after each input update, just before the game's own
+// Update reads it. Queued events would not do: while the Game view (Editor) or the window (player) has no focus, which
+// is always the case for the agent, the Input System holds keyboard events back.
 System.Func<string, float, string> PtKey = (key, holdSeconds) =>
 {
     var ptInput = PtTypeOrNull("UnityEngine.InputSystem.InputSystem, Unity.InputSystem");
     if (ptInput == null) return "no Input System package: use Press()";
     var ptKeyboard = PtGet(PtType("UnityEngine.InputSystem.Keyboard, Unity.InputSystem"), "current");
     if (ptKeyboard == null) return "no keyboard device";
+    if (!(bool)PtGet(ptKeyboard, "enabled")) PtCall(ptInput, "EnableDevice", new object[] { ptKeyboard }); // a player in the background
     var ptKeyEnum = PtType("UnityEngine.InputSystem.Key, Unity.InputSystem");
     var ptStateType = PtType("UnityEngine.InputSystem.LowLevel.KeyboardState, Unity.InputSystem");
+    var ptInputState = PtType("UnityEngine.InputSystem.LowLevel.InputState, Unity.InputSystem");
     var ptDown = System.Array.CreateInstance(ptKeyEnum, 1);
     ptDown.SetValue(System.Enum.Parse(ptKeyEnum, key, true), 0);
-    System.Reflection.MethodInfo ptQueue = null;
-    foreach (var ptM in ptInput.GetMethods())
-        if (ptM.Name == "QueueStateEvent" && ptM.IsGenericMethodDefinition) ptQueue = ptM.MakeGenericMethod(ptStateType);
-    System.Action<object> ptSend = ptState => ptQueue.Invoke(null, new object[] { ptKeyboard, ptState, -1.0 });
-    ptSend(System.Activator.CreateInstance(ptStateType, new object[] { ptDown }));
-    var ptStart = UnityEngine.Time.realtimeSinceStartupAsDouble;
-    var ptFrames = 0;
-    UnityEngine.Events.UnityAction tick = null;
-    tick = () =>
+    System.Reflection.MethodInfo ptChange = null; // InputState.Change<TState>(InputControl, TState, InputUpdateType, InputEventPtr)
+    foreach (var ptM in ptInputState.GetMethods())
+        if (ptM.Name == "Change" && ptM.IsGenericMethodDefinition && !ptM.GetParameters()[1].ParameterType.IsByRef)
+            ptChange = ptM.MakeGenericMethod(ptStateType);
+    var ptParams = ptChange.GetParameters();
+    System.Action<object> ptWrite = ptState => ptChange.Invoke(null, new object[] { ptKeyboard, ptState,
+        System.Activator.CreateInstance(ptParams[2].ParameterType), System.Activator.CreateInstance(ptParams[3].ParameterType) });
+    var ptAfterUpdate = ptInput.GetEvent("onAfterUpdate");
+    var ptStart = 0.0;
+    var ptUpdates = 0;
+    var ptReleasedAt = 0;
+    System.Action ptHook = null;
+    ptHook = () =>
     {
-        // Two frames at least: the press is read in the first input update, the release in a later one.
-        if (++ptFrames < 2 || UnityEngine.Time.realtimeSinceStartupAsDouble - ptStart < holdSeconds) return;
-        UnityEngine.Application.onBeforeRender -= tick;
-        // ponytail: every key up, so two overlapping PtKey calls end together; track held keys if a case needs chords
-        ptSend(System.Activator.CreateInstance(ptStateType));
-        PtKeep("key." + key, "released after " + (UnityEngine.Time.realtimeSinceStartupAsDouble - ptStart).ToString("F3") + " s, " + ptFrames + " frames");
+        try
+        {
+            var ptType = PtGet(ptInputState, "currentUpdateType").ToString();
+            if (ptType == "Editor" || ptType == "BeforeRender") return; // only the updates the game reads from
+            ptUpdates++;
+            if (ptUpdates == 1) { ptStart = UnityEngine.Time.realtimeSinceStartupAsDouble; ptWrite(System.Activator.CreateInstance(ptStateType, new object[] { ptDown })); return; }
+            if (ptReleasedAt == 0)
+            {
+                if (UnityEngine.Time.realtimeSinceStartupAsDouble - ptStart < holdSeconds) return;
+                // ponytail: every key up, so two overlapping PtKey calls end together; track held keys if a case needs chords
+                ptWrite(System.Activator.CreateInstance(ptStateType));
+                ptReleasedAt = ptUpdates;
+                return;
+            }
+            PtKeep("key." + key, "released after " + (UnityEngine.Time.realtimeSinceStartupAsDouble - ptStart).ToString("F3") + " s, " + (ptReleasedAt - 1) + " updates held");
+        }
+        catch (System.Exception e) { PtKeep("key." + key, "error: " + (e.InnerException ?? e).Message); }
+        ptAfterUpdate.RemoveEventHandler(null, ptHook); // done, or failed: never left running every update
     };
     PtKeep("key." + key, "waiting");
-    UnityEngine.Application.onBeforeRender += tick;
-    return "key " + key + " down";
+    ptAfterUpdate.AddEventHandler(null, ptHook);
+    return "key " + key + " queued";
 };
 System.Action<string, string, System.Func<string>> PtAt = (key, isoUtc, action) =>
 {

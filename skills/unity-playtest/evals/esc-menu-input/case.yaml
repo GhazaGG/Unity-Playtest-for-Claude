@@ -1,0 +1,10 @@
+schema_version: "1.1"
+name: esc-menu-input
+expected_outcome: |
+  A solo Play Mode run that presses the real keys (E and Esc through the Input System), not only
+  PlayerInteractor.Interact or SessionMenu methods. Esc opens the menu and E does nothing while it is open. Closing
+  the menu with Resume gives E back. Closing it with Esc does not: the menu is gone, the HUD shows the prompt again,
+  but E stays dead until the menu is opened and closed with Resume. The cause: SessionMenu.Update disables the
+  Player action map when the menu opens, and only Resume enables it again. Calling Interact() directly still works
+  after an Esc close, so a run that never presses the key misses the bug. Play Mode is stopped and the project is
+  unchanged afterwards.

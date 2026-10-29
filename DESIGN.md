@@ -204,8 +204,14 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
   in place of fixed `wait:` sleeps.
 - Verified by hand in Unity 6000.3, with the Editor unfocused, on a copy of the sample switched to an Input System
   action: a tap (seen 1 frame later), a 1 s hold counted once, a disabled action map that `PtKey` left untouched while
-  `Press()` still reached the method, and a timeout. No eval yet: the sample still uses the old Input Manager.
-  Next: an eval where the action map stays disabled after a pause menu.
+  `Press()` still reached the method, and a timeout.
+- The first `PtKey` queued key events. On the sample it worked until the Editor lost focus, then the Input System held
+  every queued key back, whatever `backgroundBehavior` said (pitfall 34). `PtKey` now writes the keyboard state right
+  after each input update, which the game's Update reads.
+- The sample moved E and Esc to the Input System and got an Esc menu with a planted bug: closing it with Esc leaves
+  the Player action map disabled; only Resume enables it. The `esc-menu-input` eval checks that a run presses the keys
+  and finds it. Its ground truth was measured with `PtKey` (E dead after an Esc close, back after Resume, a 1 s hold
+  opens the door); the eval itself was not run yet.
 
 ## 9. Launch plan (for stars)
 

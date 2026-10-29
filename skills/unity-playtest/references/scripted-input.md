@@ -20,9 +20,10 @@ Search the project for where the interact input is read:
 Follow the call chain until it reaches a public or private method with no input dependency, such as `TryInteract()`,
 `RequestGrab()` or `BeginInteraction(target)`. That method is `Press()`.
 
-**With the Input System package, press the real key.** `PtKey("E", 0f)` queues the key on the keyboard, so the game's
-own action map, binding and `WasPressedThisFrame` or `performed` callback run, and the key comes up two frames or
-more later. Use it for the case under test, and `Press()` only for setup. It catches what `Press()` cannot: an action
+**With the Input System package, press the real key.** `PtKey("E", 0f)` puts the key down on the keyboard in the next
+input update, so the game's own action map, binding and `WasPressedThisFrame` or `performed` callback run, and the key
+comes up one update or more later. It works with the Editor and the client in the background; queued key events do not
+(pitfall 34). Use it for the case under test, and `Press()` only for setup. It catches what `Press()` cannot: an action
 map that a pause menu or cutscene left disabled, a wrong binding, a UI that eats the key, a hold that is too short.
 `PtKey("E", 1.5f)` holds the key for 1.5 s, for hold-to-interact.
 
