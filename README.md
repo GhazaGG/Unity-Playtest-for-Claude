@@ -1,3 +1,5 @@
+<img src="assets/logo/logo.svg" width="96" alt="unity-playtest logo">
+
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
 > **v0.3.3, private preview.** Tested on one real Unity 6 + Netcode project and on
