@@ -98,10 +98,19 @@ def unity(args, player=None, timeout=90, project=None):
     return ok, data
 
 
-def build_source(step_body, adapter_text, editor=True):
+def prelude_text(work):
+    """prelude.cs next to this script, else the copy in .playtest/: a marketplace may run this script on its own."""
+    for path in (PRELUDE, work / "prelude.cs"):
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    sys.exit(f"No prelude.cs next to drive.py or in {work}. Copy the skill's scripts/prelude.cs there.")
+
+
+def build_source(step_body, adapter_text, editor=True, prelude=None):
     """[keepalive] + prelude + adapter + step + return. The order matters: the step uses names from both."""
     parts = [EDITOR_KEEPALIVE] if editor else []
-    parts += [PRELUDE.read_text(encoding="utf-8"), adapter_text, step_body, "return sb.ToString();", ""]
+    prelude = prelude if prelude is not None else PRELUDE.read_text(encoding="utf-8")
+    parts += [prelude, adapter_text, step_body, "return sb.ToString();", ""]
     return "\n".join(parts)
 
 
@@ -200,7 +209,8 @@ def run_step(step, work, player, full=False):
     else:
         return f"[{step}] no such step file: {step_file}"
     adapter = work / "adapter.cs"
-    source = build_source(body, adapter.read_text(encoding="utf-8") if adapter.is_file() else "", editor=not player)
+    source = build_source(body, adapter.read_text(encoding="utf-8") if adapter.is_file() else "", editor=not player,
+                          prelude=prelude_text(work))
     # One file per target, so an Editor step and a player step started together (a race) don't overwrite each other.
     run_file = work / (f"_run.{Path(player).resolve().name}.cs" if player else "_run.cs")
     run_file.write_text(source, encoding="utf-8")

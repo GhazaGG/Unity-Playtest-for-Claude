@@ -1,6 +1,6 @@
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
-> **v0.3.2, private preview.** Tested on one real Unity 6 + Netcode project and on
+> **v0.3.3, private preview.** Tested on one real Unity 6 + Netcode project and on
 > [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), with evals run with and without the
 > skill ([results](#evals)). See [DESIGN.md](DESIGN.md).
 

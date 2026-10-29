@@ -67,6 +67,16 @@ class DriveTests(unittest.TestCase):
             self.assertIn("saved", line)
             self.assertTrue((work / "shots" / "client.png").is_file())
 
+    def test_prelude_falls_back_to_the_workspace_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            (work / "prelude.cs").write_text("// copied", encoding="utf-8")
+            real, drive.PRELUDE = drive.PRELUDE, work / "missing.cs"
+            try:
+                self.assertEqual(drive.prelude_text(work), "// copied")
+            finally:
+                drive.PRELUDE = real
+
     def test_until_polls_past_waiting(self):
         answers = iter(["waiting", "waiting", "0.120 s, 7 frames"])
         real_unity, real_sleep = drive.unity, drive.time.sleep

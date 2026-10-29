@@ -16,7 +16,9 @@ The scripts live next to this file:
 - `scripts/doctor.py` checks the setup and catches leftovers;
 - `scripts/prelude.cs` holds reflection helpers that every step gets.
 
-Both Python scripts are stdlib-only and run on Python 3.8+.
+Both Python scripts are stdlib-only and run on Python 3.8+. If they run apart from this folder (some marketplaces
+run each script on its own), write `scripts/prelude.cs` and the `templates/` files into `.playtest/` after
+`doctor.py --init`; `drive.py` then reads the prelude from there.
 
 Read the reference that matches the layer you are on. Do not read them all up front:
 - [pipeline-cheatsheet.md](references/pipeline-cheatsheet.md): exact CLI commands and their quirks

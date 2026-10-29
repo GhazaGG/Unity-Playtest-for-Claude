@@ -244,6 +244,7 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 | v0.3 | Late joiner, race and feel-number tools and evals; token fast path. Done 2026-10-28. |
 | v0.3.1 | Pipeline 0.9 support: grouped command names with a fallback to 0.8, the define-based runtime toggle, pitfalls 31-33. |
 | v0.3.2 | `PtKey` (a real key press through the Input System), `PtUntil` and `drive.py until:KEY` (wait for a state, not a time). |
+| v0.3.3 | Agensi listing: `tools/package_agensi.py` builds a zip with SKILL.md at the root; `drive.py` reads `prelude.cs` from `.playtest/` when it runs apart from the skill. |
 | v0.4 | Launch posts; run the race and feel-number evals. |
 
 ## 12. Decisions (2026-10-27)

@@ -142,6 +142,9 @@ def main(argv=None):
     if args.init:
         work = init_workspace(project)
         report("OK", f"workspace {work} (git ignores it through its own .gitignore)")
+        if not TEMPLATES.is_dir():  # a marketplace that runs this script on its own, away from the skill's files
+            report("WARN", "templates are not next to doctor.py: write the skill's templates/*.md, templates/adapter.cs"
+                           f" and scripts/prelude.cs into {work} yourself")
     elif not (project / ".playtest" / ".gitignore").is_file():
         report("WARN", "no .playtest/ yet: run doctor.py --init")
 
