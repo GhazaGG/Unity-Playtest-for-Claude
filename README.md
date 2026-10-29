@@ -1,7 +1,7 @@
 # unity-playtest: Claude can't play your Unity game. Now it can test it.
 
-> **v0.2, private preview.** Tested on one real Unity 6 + Netcode project and on
-> [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), with three evals run with and without the
+> **v0.3.2, private preview.** Tested on one real Unity 6 + Netcode project and on
+> [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample), with evals run with and without the
 > skill ([results](#evals)). See [DESIGN.md](DESIGN.md).
 
 ![A host + client playtest: probes, a client pickup, a forged request the server accepts, and a door that looks open but blocks the way](examples/playtest.gif)
@@ -11,7 +11,7 @@ Claude can compile your project and run your unit tests, but it can't play your 
 **unity-playtest** is a Claude Code skill that turns your feature's "How to test" into evidence. It drives the running Unity Editor, and a local development build, through Unity's own Pipeline CLI.
 
 - **Editor probes.** Finds objects stuck in colliders, blocked spawn spots, missing references, and prefabs missing from the network list, and takes Scene view screenshots.
-- **Scripted Play Mode.** Plays through your game's real input path: aim at the target, let your interaction detector pick it, then call the same method the key press calls. It checks state and takes Game view screenshots.
+- **Scripted Play Mode.** Plays through your game's real input path: aim at the target, let your interaction detector pick it, then press the real key through the Input System, so your action map and bindings run too (on the old Input Manager, it calls the method the key press calls). It waits for a state rather than a fixed time, checks state and takes Game view screenshots.
 - **Host + client.** Runs the Editor as host and a development build as client, with simulated latency, and checks every step on both peers. It also sends intents a real client couldn't send, such as from too far away or through a wall, to prove your server rejects them.
 - **Honest report.** A checklist with pass, fail and skip. Each case says whether a script or a human verified it. Feel, sound and visuals are never marked passed by a script.
 

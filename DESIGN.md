@@ -197,6 +197,16 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
   evals have measured ground truth but were not run, to save tokens.
 - The description tuning loop was skipped (see README).
 
+**v0.3.2 (2026-10-29):**
+- `Press()` calls the method behind the key, so the line that reads the key never ran. `PtKey` queues the key on the
+  Input System keyboard instead, and the game's action map, binding and `WasPressedThisFrame` run.
+- `PtUntil` notes the first frame a condition holds, or times out with the last state; `drive.py until:KEY` polls it,
+  in place of fixed `wait:` sleeps.
+- Verified by hand in Unity 6000.3, with the Editor unfocused, on a copy of the sample switched to an Input System
+  action: a tap (seen 1 frame later), a 1 s hold counted once, a disabled action map that `PtKey` left untouched while
+  `Press()` still reached the method, and a timeout. No eval yet: the sample still uses the old Input Manager.
+  Next: an eval where the action map stays disabled after a pause menu.
+
 ## 9. Launch plan (for stars)
 
 - **README**:
@@ -223,6 +233,7 @@ It is [Unity-Playtest-Sample](https://github.com/GhazaGG/Unity-Playtest-Sample),
 | v0.2 | Sample Unity project (own repo), three evals with and without the skill, examples, and the README GIF. Done 2026-10-28. |
 | v0.3 | Late joiner, race and feel-number tools and evals; token fast path. Done 2026-10-28. |
 | v0.3.1 | Pipeline 0.9 support: grouped command names with a fallback to 0.8, the define-based runtime toggle, pitfalls 31-33. |
+| v0.3.2 | `PtKey` (a real key press through the Input System), `PtUntil` and `drive.py until:KEY` (wait for a state, not a time). |
 | v0.4 | Launch posts; run the race and feel-number evals. |
 
 ## 12. Decisions (2026-10-27)
